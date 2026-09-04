@@ -57,7 +57,11 @@ export function PipeMesh3D({ structure, pipe, interactive }: PipeMesh3DProps) {
   }, pipe.end.z);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!interactive) return;
+    // Only the Select tool treats a click here as "select/toggle this pipe"
+    // and swallows it. A placement tool needs the same click to fall through
+    // to the build lattice behind it (e.g. to attach a new pipe's other end
+    // to a connector standing right next to this one).
+    if (!interactive || activeTool !== "select") return;
     e.stopPropagation();
     if (wasDragged(e.nativeEvent)) return;
     toggleSelectedElementId(pipe.id, e.nativeEvent.shiftKey);

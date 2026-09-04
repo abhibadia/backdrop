@@ -6,10 +6,10 @@
  * are built around the same brand accent (a slate/steel blue, echoing the
  * knight badge logo) and a warm cream foreground/paper tone rather than
  * stark white/black. useThemeSync (src/lib/workspace/useThemeSync.ts) sets
- * data-theme on <html> from the UI store. The 3D viewport background
- * (--canvas-bg) intentionally does NOT change with theme — a CAD canvas
- * stays a fixed neutral dark regardless of chrome theme, the same way most
- * 3D/CAD tools keep their viewport tone constant.
+ * data-theme on <html> from the UI store. --canvas-bg here only backstops
+ * the 3D view's own <canvas> (its actual background/grid colors are set from
+ * JS — see SCENE_BACKGROUND/SCENE_GRID_COLORS in src/lib/model/render.ts,
+ * read via the same theme) for the moment before WebGL has painted.
  */
 :root {
   /* Base surfaces */
@@ -63,6 +63,9 @@
   --warning: #b3720f;
   --danger: #c23b4d;
   --success: #1f8f68;
+
+  /* Matches SCENE_BACKGROUND.light in src/lib/model/render.ts. */
+  --canvas-bg: #e4ddc9;
 }
 
 @theme inline {

@@ -46,7 +46,12 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   }, connector.position.z);
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    if (!interactive) return;
+    // Only the Select tool treats a click here as "select/toggle this
+    // connector" and swallows it. Any placement tool (pipe/connector) needs
+    // this same click to fall through to the build lattice behind it, so it
+    // can detect "aimed at this connector" and attach/block accordingly —
+    // stopping propagation here would make port-attachment impossible.
+    if (!interactive || activeTool !== "select") return;
     e.stopPropagation();
     if (wasDragged(e.nativeEvent)) return;
     toggleSelectedElementId(connector.id, e.nativeEvent.shiftKey);

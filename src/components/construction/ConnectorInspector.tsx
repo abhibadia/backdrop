@@ -9,7 +9,7 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { CONNECTOR_TYPE_LABEL, CONNECTOR_TYPE_PORTS } from "@/lib/model/catalog";
 import { createConnector } from "@/lib/model/factory";
-import { distance } from "@/lib/utils/geometry";
+import { getConnectorPortInfo } from "@/lib/model/connectorPorts";
 import { PipeTypeSelector } from "./PipeTypeSelector";
 import { ConnectorTypeSelector } from "./ConnectorTypeSelector";
 import { Vector3Fields } from "./Vector3Fields";
@@ -26,16 +26,10 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
   const clearSelection = useUIStore((s) => s.clearSelection);
   const setSelectedElementIds = useUIStore((s) => s.setSelectedElementIds);
 
-  // Count pipe endpoints coincident with this connector's position as a
-  // rough "used ports" estimate (connectors don't model discrete port ids).
-  // Distance is full 3D, so a pipe endpoint only counts as connected if it's
-  // actually at the connector's position, depth included.
-  const tolerance = 6;
-  const usedPorts = Object.values(structure.pipes).filter(
-    (pipe) =>
-      distance(pipe.start, connector.position) <= tolerance ||
-      distance(pipe.end, connector.position) <= tolerance,
-  ).length;
+  // Which specific ports (by angle, connector.rotation applied) are occupied —
+  // the same matching the Pipe tool uses to plug a new pipe into a free hole.
+  const portInfo = getConnectorPortInfo(structure, connector);
+  const usedPorts = portInfo.occupied.filter(Boolean).length;
   const totalPorts = CONNECTOR_TYPE_PORTS[connector.type];
 
   return (
@@ -118,9 +112,6 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
 
       <div className="mb-2 rounded-md bg-surface-elevated px-2 py-1.5 font-mono text-[11px] text-foreground-muted">
         {CONNECTOR_TYPE_LABEL[connector.type]} · {usedPorts}/{totalPorts} ports connected
-        {usedPorts > totalPorts && (
-          <p className="mt-1 text-warning">⚠ Connector capacity exceeded</p>
-        )}
       </div>
 
       <Vector3Fields

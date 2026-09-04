@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as THREE from "three";
-import { Grid } from "@react-three/drei";
+import { Grid, Html } from "@react-three/drei";
 import { ThreeEvent } from "@react-three/fiber";
-import { Structure, Point3D } from "@/lib/model/types";
+import { ConnectorInstance, Structure, Point3D } from "@/lib/model/types";
 import { resolveSnappedPoint } from "@/lib/canvas/snapping";
 import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
 import { createConnector, createPipe } from "@/lib/model/factory";
 import {
+  BUILD_LATTICE_CELL_COLOR,
   CONNECTOR_ARM_LENGTH_3D,
   IMAGE_BACK_LAYER_Z,
   PIPE_RADIUS_3D,
+  SCENE_GRID_COLORS,
   SELECTION_COLOR_3D,
 } from "@/lib/model/render";
 import { CONNECTOR_PORT_ANGLES, PIPE_SIZE_NOMINAL_LENGTH_M } from "@/lib/model/catalog";
+import {
+  bestFreePortIndex,
+  findNearbyConnector,
+  freePortIndices,
+  getConnectorPortInfo,
+  pointAtPort,
+} from "@/lib/model/connectorPorts";
 import { convertUnits, realToPx } from "@/lib/utils/units";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
@@ -31,6 +40,8 @@ const ANGLE_SNAP_DEG = 15;
 const DEPTH_LAYERS_EACH_SIDE = 8;
 /** Height/side layers stepping outward from the image's own edges. */
 const EXTENT_LAYERS_EACH_SIDE = 6;
+const BLOCKED_COLOR = "#e5484d";
+const AXIS_KEYS: Record<string, "x" | "y" | "z"> = { "\\": "x", "/": "y", "`": "z" };
 
 type LayerOrientation = "xy" | "xz" | "yz";
 
@@ -126,6 +137,137 @@ function buildLayers(w: number, h: number): LayerSpec[] {
   return layers;
 }
 
+interface ResolvedSegment {
+  start: Point3D;
+  end: Point3D;
+  /** Set when the aim (or the start) landed on a connector with zero free ports — nothing can be placed. */
+  blockedConnector: ConnectorInstance | null;
+  /** The connector a new endpoint is attaching to, if any — lets arrow keys cycle among its free ports. */
+  targetConnector: ConnectorInstance | null;
+  targetFreeIndices: number[];
+  targetPortIndex: number | null;
+  /** True if start/end effectively coincide — nothing meaningful to place/preview. */
+  degenerate: boolean;
+}
+
+/**
+ * Works out where a pipe segment actually ends up, given the user's raw aim.
+ * Three cases, checked in order:
+ *  1. The aim lands on a connector — plug into one of its free ports (or
+ *     flag it as blocked if it has none), recomputing `start` so the segment
+ *     is still exactly `fixedLength` long.
+ *  2. `drawStart` itself was set on a connector (case 1 didn't fire, so the
+ *     current aim is free space) — same idea, mirrored: `start` is pinned to
+ *     the connector's port, `end` is recomputed outward from it.
+ *  3. Neither end is on a connector — ordinary free-space placement, with
+ *     an optional hard axis lock.
+ */
+function resolveSegment(
+  drawStart: Point3D,
+  rawAim: Point3D,
+  structure: Structure,
+  axisLock: "x" | "y" | "z" | null,
+  portOverride: number | null,
+  fixedLength: number,
+): ResolvedSegment {
+  const aimConnector = findNearbyConnector(structure, rawAim);
+  if (aimConnector) {
+    const info = getConnectorPortInfo(structure, aimConnector);
+    const free = freePortIndices(info);
+    if (free.length === 0) {
+      return {
+        start: drawStart,
+        end: drawStart,
+        blockedConnector: aimConnector,
+        targetConnector: aimConnector,
+        targetFreeIndices: [],
+        targetPortIndex: null,
+        degenerate: true,
+      };
+    }
+    const portIndex =
+      (portOverride !== null && free.includes(portOverride) ? portOverride : null) ??
+      bestFreePortIndex(info, aimConnector.position, drawStart) ??
+      free[0];
+    const start = pointAtPort(aimConnector.position, info.angles[portIndex], fixedLength);
+    return {
+      start,
+      end: aimConnector.position,
+      blockedConnector: null,
+      targetConnector: aimConnector,
+      targetFreeIndices: free,
+      targetPortIndex: portIndex,
+      degenerate: false,
+    };
+  }
+
+  const drawStartConnector = findNearbyConnector(structure, drawStart);
+  if (drawStartConnector) {
+    const info = getConnectorPortInfo(structure, drawStartConnector);
+    const free = freePortIndices(info);
+    if (free.length === 0) {
+      return {
+        start: drawStart,
+        end: drawStart,
+        blockedConnector: drawStartConnector,
+        targetConnector: drawStartConnector,
+        targetFreeIndices: [],
+        targetPortIndex: null,
+        degenerate: true,
+      };
+    }
+    const portIndex =
+      (portOverride !== null && free.includes(portOverride) ? portOverride : null) ??
+      bestFreePortIndex(info, drawStartConnector.position, rawAim) ??
+      free[0];
+    const end = pointAtPort(drawStartConnector.position, info.angles[portIndex], fixedLength);
+    return {
+      start: drawStartConnector.position,
+      end,
+      blockedConnector: null,
+      targetConnector: drawStartConnector,
+      targetFreeIndices: free,
+      targetPortIndex: portIndex,
+      degenerate: false,
+    };
+  }
+
+  let effectiveAim = rawAim;
+  if (axisLock === "x") effectiveAim = { x: rawAim.x, y: drawStart.y, z: drawStart.z };
+  else if (axisLock === "y") effectiveAim = { x: drawStart.x, y: rawAim.y, z: drawStart.z };
+  else if (axisLock === "z") effectiveAim = { x: drawStart.x, y: drawStart.y, z: rawAim.z };
+
+  const dx = effectiveAim.x - drawStart.x;
+  const dy = effectiveAim.y - drawStart.y;
+  const dz = effectiveAim.z - drawStart.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < MIN_AIM_LENGTH) {
+    return {
+      start: drawStart,
+      end: drawStart,
+      blockedConnector: null,
+      targetConnector: null,
+      targetFreeIndices: [],
+      targetPortIndex: null,
+      degenerate: true,
+    };
+  }
+  const scale = fixedLength / len;
+  return {
+    start: drawStart,
+    end: {
+      x: drawStart.x + dx * scale,
+      y: drawStart.y + dy * scale,
+      z: drawStart.z + dz * scale,
+    },
+    blockedConnector: null,
+    targetConnector: null,
+    targetFreeIndices: [],
+    targetPortIndex: null,
+    degenerate: false,
+  };
+}
+
 export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
   const activeTool = useUIStore((s) => s.activeTool);
   const activePipeSize = useUIStore((s) => s.activePipeSize);
@@ -133,11 +275,14 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
   const gridEnabled = useUIStore((s) => s.gridEnabled);
   const snapEnabled = useUIStore((s) => s.snapEnabled);
   const touchImageOnly = useUIStore((s) => s.touchImageOnly);
+  const theme = useUIStore((s) => s.theme);
   const addPipe = useProjectStore((s) => s.addPipe);
   const addConnector = useProjectStore((s) => s.addConnector);
 
   const [drawStart, setDrawStart] = useState<Point3D | null>(null);
-  const [hover, setHover] = useState<Point3D | null>(null);
+  const [rawAim, setRawAim] = useState<Point3D | null>(null);
+  const [axisLock, setAxisLock] = useState<"x" | "y" | "z" | null>(null);
+  const [portOverride, setPortOverride] = useState<number | null>(null);
   const { markPointerDown, wasDragged } = useClickGuard();
 
   const isPipeTool = activeTool === "place-pipe";
@@ -149,23 +294,80 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
   if (resetKey !== prevResetKey) {
     setPrevResetKey(resetKey);
     setDrawStart(null);
-    setHover(null);
+    setRawAim(null);
+    setAxisLock(null);
+    setPortOverride(null);
   }
 
-  // Only the placement tools need this lattice; for "select" (or anything
-  // else) it must not exist at all, otherwise — since its layers sit in
-  // front of/around every pipe/connector — it would silently swallow every
-  // click meant for them.
-  if (!isPipeTool && !isConnectorTool) return null;
   // Building requires the structure to be calibrated first — pipe length is
   // now a real-world measurement (see PIPE_SIZE_NOMINAL_LENGTH_M below), and
   // there's no way to express "2 meters" in scene units without a scale.
   // The toolbar already disables these tools with no calibration; this is
   // the enforcement that actually matters (it can't be bypassed via a
   // keyboard shortcut or any other path that flips activeTool directly).
-  if (!structure.calibration) return null;
-  const calibration = structure.calibration;
+  const pipeLengthScene =
+    isPipeTool && structure.calibration
+      ? realToPx(convertUnits(PIPE_SIZE_NOMINAL_LENGTH_M[activePipeSize], "m", structure.calibration.unit), structure.calibration)
+      : 0;
 
+  // The live segment a pipe would become if you clicked right now — recomputed
+  // fresh from `drawStart`/`rawAim` on every render rather than stored as its
+  // own state, so it can never drift out of sync with them.
+  const pipeSegment: ResolvedSegment | null =
+    isPipeTool && drawStart && rawAim
+      ? resolveSegment(drawStart, rawAim, structure, axisLock, portOverride, pipeLengthScene)
+      : null;
+
+  // Before a start point exists, "attaching" is simpler — just check whether
+  // the hovered point is a connector with no free ports, for the same early
+  // red/blocked warning.
+  const preStartBlockedConnector: ConnectorInstance | null =
+    isPipeTool && !drawStart && rawAim
+      ? (() => {
+          const c = findNearbyConnector(structure, rawAim);
+          if (!c) return null;
+          return freePortIndices(getConnectorPortInfo(structure, c)).length === 0 ? c : null;
+        })()
+      : null;
+
+  const blockedConnector = pipeSegment?.blockedConnector ?? preStartBlockedConnector;
+
+  // Arrow keys cycle which free port a pipe attaches to when a connector has
+  // more than one available; \ / ` hard-lock the direction to the X/Y/Z axis
+  // (pressing the same one again releases it). Scoped to this component's
+  // lifetime, i.e. only while a placement tool is actually active.
+  useEffect(() => {
+    if (!isPipeTool || !drawStart) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const free = pipeSegment?.targetFreeIndices ?? [];
+        if (free.length < 2) return;
+        e.preventDefault();
+        const current = pipeSegment?.targetPortIndex ?? free[0];
+        const currentPos = free.indexOf(current);
+        const delta = e.key === "ArrowLeft" ? -1 : 1;
+        const nextPos = (currentPos + delta + free.length) % free.length;
+        setPortOverride(free[nextPos]);
+        return;
+      }
+      const axis = AXIS_KEYS[e.key];
+      if (axis) {
+        e.preventDefault();
+        setAxisLock((current) => (current === axis ? null : axis));
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPipeTool, drawStart, pipeSegment]);
+
+  // Only the placement tools need this lattice; for "select" (or anything
+  // else) it must not exist at all, otherwise — since its layers sit in
+  // front of/around every pipe/connector — it would silently swallow every
+  // click meant for them.
+  if (!isPipeTool && !isConnectorTool) return null;
+  if (!structure.calibration) return null;
+
+  const calibration = structure.calibration;
   // `buildGridSpacing` is a small number of the calibration's own unit (e.g.
   // "6" meaning 6 inches) — with a metric calibration that same "6" becomes
   // 6 *meters*, which for a typical structure is a grid coarser than the
@@ -174,10 +376,6 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
   // usably fine regardless of which unit was picked while calibrating.
   const gridSpacingPx = Math.min(structure.buildGridSpacing * calibration.pixelsPerUnit, Math.max(w, h) / 20);
   const fadeDistance = Math.max(2000, Math.max(w, h));
-  // Pipes are drawn at an exact stock length, converted from real-world
-  // meters into this structure's scene units — direction is the only thing
-  // the user's second click controls, not distance.
-  const pipeLengthScene = realToPx(convertUnits(PIPE_SIZE_NOMINAL_LENGTH_M[activePipeSize], "m", calibration.unit), calibration);
 
   const resolvePoint = (raw: Point3D, shiftKey: boolean, layer: LayerSpec): Point3D => {
     let point = raw;
@@ -232,26 +430,9 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
     }
   };
 
-  // Once a pipe's start point is set, the second click only *aims* — the aim
-  // point (still fully grid/candidate-snapped, so it's easy to point exactly
-  // horizontal/vertical/at an existing part) sets the direction from
-  // `drawStart`, and the real endpoint is that direction rescaled to the
-  // active size's exact stock length. Returns null if the aim is degenerate
-  // (essentially back on top of the start point).
-  const applyFixedPipeLength = (aim: Point3D, start: Point3D): Point3D | null => {
-    const dx = aim.x - start.x;
-    const dy = aim.y - start.y;
-    const dz = aim.z - start.z;
-    const len = Math.hypot(dx, dy, dz);
-    if (len < MIN_AIM_LENGTH) return null;
-    const scale = pipeLengthScene / len;
-    return { x: start.x + dx * scale, y: start.y + dy * scale, z: start.z + dz * scale };
-  };
-
   const handleMove = (layer: LayerSpec) => (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    const aim = resolvePoint(eventToPoint(e, layer), e.nativeEvent.shiftKey, layer);
-    setHover(isPipeTool && drawStart ? applyFixedPipeLength(aim, drawStart) : aim);
+    setRawAim(resolvePoint(eventToPoint(e, layer), e.nativeEvent.shiftKey, layer));
   };
 
   const handleClick = (layer: LayerSpec) => (e: ThreeEvent<MouseEvent>) => {
@@ -264,16 +445,21 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
 
     if (isPipeTool) {
       if (!drawStart) {
+        const blocked = findNearbyConnector(structure, aim);
+        if (blocked && freePortIndices(getConnectorPortInfo(structure, blocked)).length === 0) return;
         setDrawStart(aim);
+        setRawAim(aim);
+        setPortOverride(null);
         return;
       }
-      const end = applyFixedPipeLength(aim, drawStart);
-      if (end) {
-        addPipe(structure.id, createPipe(activePipeSize, drawStart, end));
-        setDrawStart(end);
-      } else {
-        setDrawStart(null);
+      const segment = resolveSegment(drawStart, aim, structure, axisLock, portOverride, pipeLengthScene);
+      if (segment.blockedConnector || segment.degenerate) {
+        if (segment.degenerate && !segment.blockedConnector) setDrawStart(null);
+        return;
       }
+      addPipe(structure.id, createPipe(activePipeSize, segment.start, segment.end));
+      setDrawStart(segment.end);
+      setPortOverride(null);
       return;
     }
 
@@ -289,8 +475,18 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
   const layers = touchImageOnly
     ? allLayers.filter((layer) => layer.orientation === "xy" && layer.fixed === IMAGE_BACK_LAYER_Z)
     : allLayers;
-  const previewStart3D = drawStart ? new THREE.Vector3(drawStart.x, drawStart.y, drawStart.z) : null;
-  const previewEnd3D = hover ? new THREE.Vector3(hover.x, hover.y, hover.z) : null;
+
+  const previewStart3D =
+    isPipeTool && pipeSegment && !pipeSegment.degenerate
+      ? new THREE.Vector3(pipeSegment.start.x, pipeSegment.start.y, pipeSegment.start.z)
+      : drawStart
+        ? new THREE.Vector3(drawStart.x, drawStart.y, drawStart.z)
+        : null;
+  const previewEnd3D =
+    isPipeTool && pipeSegment && !pipeSegment.degenerate
+      ? new THREE.Vector3(pipeSegment.end.x, pipeSegment.end.y, pipeSegment.end.z)
+      : null;
+  const connectorPreviewPos = isConnectorTool && rawAim ? new THREE.Vector3(rawAim.x, rawAim.y, rawAim.z) : null;
   const previewRadius = PIPE_RADIUS_3D;
 
   return (
@@ -305,8 +501,8 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
             sectionSize={gridSpacingPx * 5}
             cellThickness={0.5}
             sectionThickness={1}
-            cellColor="#1c2130"
-            sectionColor={SELECTION_COLOR_3D}
+            cellColor={BUILD_LATTICE_CELL_COLOR[theme]}
+            sectionColor={SCENE_GRID_COLORS[theme].section}
             fadeDistance={fadeDistance}
             fadeStrength={1}
           />
@@ -315,7 +511,7 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
             rotation={layer.catcherRotation}
             onPointerDown={(e) => markPointerDown(e.nativeEvent)}
             onPointerMove={handleMove(layer)}
-            onPointerLeave={() => setHover(null)}
+            onPointerLeave={() => setRawAim(null)}
             onClick={handleClick(layer)}
           >
             <planeGeometry args={layer.catcherSize} />
@@ -333,8 +529,8 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
       {isPipeTool && previewStart3D && previewEnd3D && (
         <PipePreviewCylinder start={previewStart3D} end={previewEnd3D} radius={previewRadius} />
       )}
-      {isConnectorTool && previewEnd3D && (
-        <group position={previewEnd3D}>
+      {isConnectorTool && connectorPreviewPos && (
+        <group position={connectorPreviewPos}>
           {CONNECTOR_PORT_ANGLES[activeConnectorType].map((deg) => {
             const rad = (deg * Math.PI) / 180;
             const dir = new THREE.Vector3(Math.cos(rad), Math.sin(rad), 0);
@@ -351,6 +547,56 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
           })}
         </group>
       )}
+
+      {blockedConnector && (
+        <BlockedConnectorOverlay
+          connector={blockedConnector}
+          multiplePorts={(pipeSegment?.targetFreeIndices.length ?? 0) > 1}
+        />
+      )}
+    </group>
+  );
+}
+
+function BlockedConnectorOverlay({
+  connector,
+  multiplePorts,
+}: {
+  connector: ConnectorInstance;
+  multiplePorts: boolean;
+}) {
+  const pos = new THREE.Vector3(connector.position.x, connector.position.y, connector.position.z);
+  const labelPos = pos.clone().add(new THREE.Vector3(0, CONNECTOR_ARM_LENGTH_3D + 24, 0));
+  return (
+    <group>
+      <mesh position={pos}>
+        <sphereGeometry args={[(CONNECTOR_ARM_LENGTH_3D + PIPE_RADIUS_3D) * 0.9, 16, 16]} />
+        <meshBasicMaterial color={BLOCKED_COLOR} transparent opacity={0.45} depthWrite={false} />
+      </mesh>
+      {/* A plain HTML overlay (drei's <Html>) rather than drei's <Text> —
+          the latter renders via troika-three-text, which builds its glyph
+          atlas through an offscreen canvas/WebGL context and can take down
+          the whole renderer's context on some GPU setups the very first time
+          a glyph is rasterized. A tracked DOM label sidesteps that entirely
+          and is at least as crisp for a short warning string. */}
+      <Html position={labelPos.toArray()} center style={{ pointerEvents: "none" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 2,
+            fontFamily: "var(--font-sans, sans-serif)",
+            whiteSpace: "nowrap",
+            textShadow: "0 1px 2px #000, 0 0 4px #000",
+          }}
+        >
+          <span style={{ color: BLOCKED_COLOR, fontSize: 13, fontWeight: 600 }}>
+            Can&apos;t put component here
+          </span>
+          {multiplePorts && <span style={{ color: "#c7ccd4", fontSize: 11 }}>← → choose port</span>}
+        </div>
+      </Html>
     </group>
   );
 }

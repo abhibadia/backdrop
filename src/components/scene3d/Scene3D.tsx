@@ -8,6 +8,7 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { OrbitControlsProvider } from "@/lib/canvas3d/OrbitControlsContext";
 import { computeSceneBounds3D } from "@/lib/canvas3d/autoFrame";
+import { SCENE_BACKGROUND } from "@/lib/model/render";
 import { StructureGroup3D } from "./StructureGroup3D";
 import { AutoFrameCamera } from "./AutoFrameCamera";
 import { AxisViewCamera } from "./AxisViewCamera";
@@ -23,6 +24,7 @@ export function Scene3D() {
   const structures = useProjectStore((s) => s.project.structures);
   const structureOrder = useProjectStore((s) => s.project.structureOrder);
   const mode = useUIStore((s) => s.mode);
+  const theme = useUIStore((s) => s.theme);
   const setSelectedStructureId = useUIStore((s) => s.setSelectedStructureId);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
@@ -49,7 +51,7 @@ export function Scene3D() {
           if (mode === "view") setSelectedStructureId(null);
         }}
       >
-        <color attach="background" args={["#0b0d10"]} />
+        <color attach="background" args={[SCENE_BACKGROUND[theme]]} />
         <ambientLight intensity={0.7} />
         <directionalLight position={[500, 800, 600]} intensity={1.1} />
         <directionalLight position={[-400, 200, -500]} intensity={0.35} />
