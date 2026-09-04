@@ -3,6 +3,7 @@ import { ConnectorType, PipeSize, Point } from "@/lib/model/types";
 import { useProjectStore } from "@/lib/store/projectStore";
 
 export type AppMode = "view" | "build" | "studio" | "inventory";
+export type Theme = "dark" | "light";
 
 export type BuildTool =
   | "select"
@@ -22,6 +23,11 @@ export const DEFAULT_VIEWPORT: Viewport = { scale: 1, x: 0, y: 0 };
 interface UIState {
   mode: AppMode;
   setMode: (mode: AppMode) => void;
+
+  /** Defaults to "dark"; synced with localStorage/system preference by useThemeSync. */
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
 
   activeStructureId: string | null;
   setActiveStructureId: (id: string | null) => void;
@@ -89,6 +95,10 @@ interface UIState {
 export const useUIStore = create<UIState>((set, get) => ({
   mode: "view",
   setMode: (mode) => set({ mode }),
+
+  theme: "dark",
+  setTheme: (theme) => set({ theme }),
+  toggleTheme: () => set((state) => ({ theme: state.theme === "dark" ? "light" : "dark" })),
 
   activeStructureId: null,
   setActiveStructureId: (id) => set({ activeStructureId: id }),

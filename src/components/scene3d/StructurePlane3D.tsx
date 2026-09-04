@@ -6,6 +6,7 @@ import { ThreeEvent } from "@react-three/fiber";
 import { Structure } from "@/lib/model/types";
 import { useImageTexture } from "@/lib/canvas3d/useImageTexture";
 import { useGroundDrag } from "@/lib/canvas3d/useGroundDrag";
+import { SELECTION_COLOR_3D } from "@/lib/model/render";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 
@@ -81,7 +82,7 @@ export function StructurePlane3D({ structure, isSelected, isBuildTarget, interac
               args={[new Float32Array(borderPoints.flat()), 3]}
             />
           </bufferGeometry>
-          <lineBasicMaterial color="#22d3ee" linewidth={2} />
+          <lineBasicMaterial color={SELECTION_COLOR_3D} linewidth={2} />
         </line>
       )}
     </group>

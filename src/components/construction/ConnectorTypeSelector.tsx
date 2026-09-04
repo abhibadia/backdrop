@@ -24,7 +24,7 @@ interface ConnectorTypeSelectorProps {
 
 export function ConnectorTypeSelector({ value, onChange, className }: ConnectorTypeSelectorProps) {
   return (
-    <div className={clsx("grid grid-cols-4 gap-1", className)}>
+    <div className={clsx("grid grid-cols-4 gap-2", className)}>
       {CONNECTOR_TYPES.map((type) => (
         <button
           key={type}
@@ -32,10 +32,10 @@ export function ConnectorTypeSelector({ value, onChange, className }: ConnectorT
           title={CONNECTOR_TYPE_LABEL[type]}
           onClick={() => onChange(type)}
           className={clsx(
-            "flex h-9 flex-col items-center justify-center rounded-md border font-mono text-xs transition-colors",
+            "flex h-9 flex-col items-center justify-center rounded-lg border font-mono text-xs transition-colors",
             value === type
-              ? "border-accent/50 bg-accent-soft text-accent"
-              : "border-border bg-surface-elevated text-foreground-muted hover:text-foreground",
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-foreground-muted hover:border-border-strong hover:text-foreground",
           )}
         >
           {CONNECTOR_TYPE_SHORT_LABEL[type]}

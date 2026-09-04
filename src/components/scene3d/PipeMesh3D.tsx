@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { ThreeEvent } from "@react-three/fiber";
 import { PipeSegment, Structure } from "@/lib/model/types";
 import { useGroundDrag } from "@/lib/canvas3d/useGroundDrag";
-import { PIPE_RADIUS_3D } from "@/lib/model/render";
+import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
+import { PIPE_RADIUS_3D, SELECTION_COLOR_3D } from "@/lib/model/render";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 
@@ -25,6 +26,7 @@ export function PipeMesh3D({ structure, pipe, interactive }: PipeMesh3DProps) {
 
   const isSelected = selectedElementIds.includes(pipe.id);
   const canDrag = interactive && !pipe.locked && activeTool === "select";
+  const { markPointerDown, wasDragged } = useClickGuard();
 
   // Pipes are free 3D geometry — start/end are stored directly as
   // structure-local scene-unit vectors (see coordinates3d.ts), no plane
@@ -57,10 +59,11 @@ export function PipeMesh3D({ structure, pipe, interactive }: PipeMesh3DProps) {
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     if (!interactive) return;
     e.stopPropagation();
+    if (wasDragged(e.nativeEvent)) return;
     toggleSelectedElementId(pipe.id, e.nativeEvent.shiftKey);
   };
 
-  const color = isSelected ? "#22d3ee" : pipe.locked ? "#5b616c" : "#c7ccd4";
+  const color = isSelected ? SELECTION_COLOR_3D : pipe.locked ? "#5b616c" : "#c7ccd4";
 
   // A generously-sized invisible hit cylinder handles clicks/selection —
   // a thin pipe is an easy miss otherwise, especially at a distance or
@@ -70,7 +73,12 @@ export function PipeMesh3D({ structure, pipe, interactive }: PipeMesh3DProps) {
 
   return (
     <group>
-      <mesh position={position} quaternion={quaternion} onClick={handleClick}>
+      <mesh
+        position={position}
+        quaternion={quaternion}
+        onPointerDown={(e) => markPointerDown(e.nativeEvent)}
+        onClick={handleClick}
+      >
         <cylinderGeometry args={[hitRadius, hitRadius, length, 8]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
@@ -85,14 +93,14 @@ export function PipeMesh3D({ structure, pipe, interactive }: PipeMesh3DProps) {
             onPointerDown={(e) => canDrag && beginStartDrag(e)}
           >
             <sphereGeometry args={[radius + 3, 16, 16]} />
-            <meshStandardMaterial color="#22d3ee" />
+            <meshStandardMaterial color={SELECTION_COLOR_3D} />
           </mesh>
           <mesh
             position={end}
             onPointerDown={(e) => canDrag && beginEndDrag(e)}
           >
             <sphereGeometry args={[radius + 3, 16, 16]} />
-            <meshStandardMaterial color="#22d3ee" />
+            <meshStandardMaterial color={SELECTION_COLOR_3D} />
           </mesh>
         </>
       )}

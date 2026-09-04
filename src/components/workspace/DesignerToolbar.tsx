@@ -94,7 +94,7 @@ export function DesignerToolbar() {
             className={clsx(
               "h-7 px-3 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30",
               mode === m
-                ? "bg-accent text-black"
+                ? "bg-accent text-accent-on"
                 : "bg-surface-elevated text-foreground-muted hover:text-foreground",
             )}
           >

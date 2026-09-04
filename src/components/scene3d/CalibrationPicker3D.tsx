@@ -4,6 +4,8 @@ import { useState } from "react";
 import { ThreeEvent } from "@react-three/fiber";
 import { Point, Structure } from "@/lib/model/types";
 import { pixelToPlaneLocal } from "@/lib/canvas3d/coordinates3d";
+import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
+import { SELECTION_COLOR_3D } from "@/lib/model/render";
 import { useUIStore } from "@/lib/store/uiStore";
 
 interface CalibrationPicker3DProps {
@@ -62,6 +64,7 @@ export function CalibrationPicker3D({ structure }: CalibrationPicker3DProps) {
   const setCalibrationDraftPoints = useUIStore((s) => s.setCalibrationDraftPoints);
 
   const [hoverEdge, setHoverEdge] = useState<Edge | null>(null);
+  const { markPointerDown, wasDragged } = useClickGuard();
 
   const isActive = activeTool === "calibrate" && activeStructureId === structure.id;
   const { naturalWidth: w, naturalHeight: h } = structure.image;
@@ -82,6 +85,8 @@ export function CalibrationPicker3D({ structure }: CalibrationPicker3DProps) {
 
   const handleClick = (edge: Edge) => (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    // Ignore the tail end of a camera-orbit drag — see useClickGuard.
+    if (wasDragged(e.nativeEvent)) return;
     const [pointA, pointB] = edgeEndpoints(edge, w, h);
     setCalibrationDraftPoints(pointA, pointB);
   };
@@ -96,6 +101,7 @@ export function CalibrationPicker3D({ structure }: CalibrationPicker3DProps) {
           <mesh
             key={strip.edge}
             position={pixelToPlaneLocal(strip.center, w, h, STRIP_Z)}
+            onPointerDown={(e) => markPointerDown(e.nativeEvent)}
             onPointerEnter={(e) => {
               e.stopPropagation();
               setHoverEdge(strip.edge);
@@ -104,7 +110,7 @@ export function CalibrationPicker3D({ structure }: CalibrationPicker3DProps) {
             onClick={handleClick(strip.edge)}
           >
             <planeGeometry args={strip.size} />
-            <meshBasicMaterial color="#22d3ee" transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+            <meshBasicMaterial color={SELECTION_COLOR_3D} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
           </mesh>
         );
       })}

@@ -7,7 +7,7 @@ export const Slider = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInput
       ref={ref}
       type="range"
       className={clsx(
-        "h-1.5 w-full cursor-pointer appearance-none rounded-full bg-surface-elevated accent-cyan-400",
+        "h-1.5 w-full cursor-pointer appearance-none rounded-full bg-border accent-[var(--accent)]",
         className,
       )}
       {...props}

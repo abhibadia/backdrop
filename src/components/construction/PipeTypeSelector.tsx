@@ -12,17 +12,17 @@ interface PipeTypeSelectorProps {
 
 export function PipeTypeSelector({ value, onChange, className }: PipeTypeSelectorProps) {
   return (
-    <div className={clsx("inline-flex overflow-hidden rounded-md border border-border", className)}>
+    <div className={clsx("flex flex-wrap gap-2", className)}>
       {PIPE_SIZES.map((size) => (
         <button
           key={size}
           type="button"
           onClick={() => onChange(size)}
           className={clsx(
-            "h-7 border-r border-border px-2 font-mono text-[10px] uppercase tracking-wider transition-colors last:border-r-0",
+            "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
             value === size
-              ? "bg-accent-soft text-accent"
-              : "bg-surface-elevated text-foreground-muted hover:text-foreground",
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border text-foreground-muted hover:border-border-strong hover:text-foreground",
           )}
         >
           {PIPE_SIZE_LABEL[size]}

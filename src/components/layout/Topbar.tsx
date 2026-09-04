@@ -4,7 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { Redo2, Undo2, Download, Upload, Magnet, Grid3x3 } from "lucide-react";
+import { Redo2, Undo2, Download, Upload, Magnet, Grid3x3, Moon, Sun } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { ToggleChip } from "@/components/ui/ToggleChip";
 import { useUIStore } from "@/lib/store/uiStore";
@@ -27,6 +27,8 @@ export function Topbar() {
   const toggleGrid = useUIStore((s) => s.toggleGrid);
   const snapEnabled = useUIStore((s) => s.snapEnabled);
   const toggleSnap = useUIStore((s) => s.toggleSnap);
+  const theme = useUIStore((s) => s.theme);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const canUndo = useTemporalProjectState((s) => s.pastStates.length > 0);
   const canRedo = useTemporalProjectState((s) => s.futureStates.length > 0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +121,15 @@ export function Topbar() {
           }}
         />
       </div>
+
+      <span className="h-5 w-px bg-border" />
+
+      <IconButton
+        label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        onClick={toggleTheme}
+      >
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      </IconButton>
     </header>
   );
 }

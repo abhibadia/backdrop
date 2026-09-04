@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { ThreeEvent } from "@react-three/fiber";
 import { ConnectorInstance, Structure } from "@/lib/model/types";
 import { useGroundDrag } from "@/lib/canvas3d/useGroundDrag";
-import { CONNECTOR_ARM_LENGTH_3D, PIPE_RADIUS_3D } from "@/lib/model/render";
+import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
+import { CONNECTOR_ARM_LENGTH_3D, PIPE_RADIUS_3D, SELECTION_COLOR_3D } from "@/lib/model/render";
 import { CONNECTOR_PORT_ANGLES } from "@/lib/model/catalog";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
@@ -26,6 +27,7 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
 
   const isSelected = selectedElementIds.includes(connector.id);
   const canDrag = interactive && !connector.locked && activeTool === "select";
+  const { markPointerDown, wasDragged } = useClickGuard();
   // Connectors are free 3D geometry — position is stored directly as a
   // structure-local scene-unit vector (see coordinates3d.ts).
   const position = useMemo(
@@ -35,7 +37,7 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   const armLength = CONNECTOR_ARM_LENGTH_3D;
   const radius = PIPE_RADIUS_3D * 1.15;
   const angles = CONNECTOR_PORT_ANGLES[connector.type];
-  const color = isSelected ? "#22d3ee" : connector.locked ? "#5b616c" : "#e7e9ec";
+  const color = isSelected ? SELECTION_COLOR_3D : connector.locked ? "#5b616c" : "#f0ead9";
 
   const beginDrag = useGroundDrag((point) => {
     updateConnector(structure.id, connector.id, {
@@ -46,6 +48,7 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
     if (!interactive) return;
     e.stopPropagation();
+    if (wasDragged(e.nativeEvent)) return;
     toggleSelectedElementId(connector.id, e.nativeEvent.shiftKey);
   };
 
@@ -54,7 +57,10 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
       position={position}
       rotation={[0, 0, (connector.rotation * Math.PI) / 180]}
       onClick={handleClick}
-      onPointerDown={(e) => canDrag && beginDrag(e)}
+      onPointerDown={(e) => {
+        markPointerDown(e.nativeEvent);
+        if (canDrag) beginDrag(e);
+      }}
     >
       {/* Generous invisible hit sphere, same reasoning as PipeMesh3D. */}
       <mesh>

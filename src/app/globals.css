@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/*
+ * Two palettes share this file: the default (dark) lives on :root, and
+ * [data-theme="light"] overrides just the tokens that need to flip — both
+ * are built around the same brand accent (a slate/steel blue, echoing the
+ * knight badge logo) and a warm cream foreground/paper tone rather than
+ * stark white/black. useThemeSync (src/lib/workspace/useThemeSync.ts) sets
+ * data-theme on <html> from the UI store. The 3D viewport background
+ * (--canvas-bg) intentionally does NOT change with theme — a CAD canvas
+ * stays a fixed neutral dark regardless of chrome theme, the same way most
+ * 3D/CAD tools keep their viewport tone constant.
+ */
 :root {
   /* Base surfaces */
   --background: #08090b;
@@ -9,23 +20,49 @@
   --border: #23272f;
   --border-strong: #323844;
 
-  /* Text */
-  --foreground: #e7e9ec;
-  --foreground-muted: #8a8f99;
-  --foreground-subtle: #5b616c;
+  /* Text — a warm cream rather than a stark white */
+  --foreground: #f0ead9;
+  --foreground-muted: #9a9689;
+  --foreground-subtle: #666359;
 
-  /* Accents */
-  --accent: #22d3ee;
-  --accent-strong: #06b6d4;
-  --accent-soft: rgba(34, 211, 238, 0.14);
+  /* Accents — slate/steel blue, matching the knight badge logo */
+  --accent: #7c93c4;
+  --accent-strong: #9baed4;
+  --accent-soft: rgba(124, 147, 196, 0.16);
+  /** Legible text/icon color to place directly on a solid --accent fill. */
+  --accent-on: #10131a;
   --warning: #f5a524;
   --danger: #f5455c;
   --success: #2ecc8f;
 
-  /* Canvas */
+  /* Canvas — fixed regardless of theme, see note above */
   --canvas-bg: #0b0d10;
   --canvas-grid-dot: rgba(255, 255, 255, 0.07);
   --canvas-grid-line: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] {
+  /* Base surfaces — warm paper/cream rather than stark white */
+  --background: #f2ede0;
+  --surface: #f8f4ea;
+  --surface-elevated: #fffdf8;
+  --surface-hover: #ece5d3;
+  --border: #ddd3ba;
+  --border-strong: #c7bb9d;
+
+  /* Text */
+  --foreground: #2b2820;
+  --foreground-muted: #6e6653;
+  --foreground-subtle: #9b9174;
+
+  /* Accents — same slate-blue family, deepened for contrast on a light ground */
+  --accent: #46608f;
+  --accent-strong: #35496b;
+  --accent-soft: rgba(70, 96, 143, 0.14);
+  --accent-on: #f5f1e6;
+  --warning: #b3720f;
+  --danger: #c23b4d;
+  --success: #1f8f68;
 }
 
 @theme inline {
@@ -41,6 +78,7 @@
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-on: var(--accent-on);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-success: var(--success);
@@ -50,6 +88,10 @@
 
 html {
   color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {

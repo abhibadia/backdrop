@@ -10,16 +10,14 @@ interface PanelProps {
 
 export function Panel({ title, action, children, className }: PanelProps) {
   return (
-    <div className={clsx("border-b border-border", className)}>
+    <div className={clsx("px-4 py-5", className)}>
       {title && (
-        <div className="flex items-center justify-between px-3 py-2">
-          <h3 className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
-            {title}
-          </h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-sm font-medium text-foreground">{title}</h3>
           {action}
         </div>
       )}
-      <div className={title ? "px-3 pb-3" : "p-3"}>{children}</div>
+      <div>{children}</div>
     </div>
   );
 }

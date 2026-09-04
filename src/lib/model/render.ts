@@ -23,3 +23,12 @@ export const CONNECTOR_ARM_LENGTH_3D = 20;
  * something skewering it.
  */
 export const IMAGE_BACK_LAYER_Z = -(PIPE_RADIUS_3D + 3);
+
+/**
+ * Selection/highlight color used throughout the 3D scene — matches the
+ * app's brand accent (--accent in globals.css). Kept as a plain constant
+ * rather than reading the CSS variable: the 3D viewport's own colors don't
+ * respond to the light/dark theme toggle (see the note in globals.css), so
+ * this only ever needs the one value.
+ */
+export const SELECTION_COLOR_3D = "#7c93c4";

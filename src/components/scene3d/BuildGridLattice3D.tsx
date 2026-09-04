@@ -6,8 +6,14 @@ import { Grid } from "@react-three/drei";
 import { ThreeEvent } from "@react-three/fiber";
 import { Structure, Point3D } from "@/lib/model/types";
 import { resolveSnappedPoint } from "@/lib/canvas/snapping";
+import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
 import { createConnector, createPipe } from "@/lib/model/factory";
-import { CONNECTOR_ARM_LENGTH_3D, IMAGE_BACK_LAYER_Z, PIPE_RADIUS_3D } from "@/lib/model/render";
+import {
+  CONNECTOR_ARM_LENGTH_3D,
+  IMAGE_BACK_LAYER_Z,
+  PIPE_RADIUS_3D,
+  SELECTION_COLOR_3D,
+} from "@/lib/model/render";
 import { CONNECTOR_PORT_ANGLES, PIPE_SIZE_NOMINAL_LENGTH_M } from "@/lib/model/catalog";
 import { convertUnits, realToPx } from "@/lib/utils/units";
 import { useProjectStore } from "@/lib/store/projectStore";
@@ -132,6 +138,7 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
 
   const [drawStart, setDrawStart] = useState<Point3D | null>(null);
   const [hover, setHover] = useState<Point3D | null>(null);
+  const { markPointerDown, wasDragged } = useClickGuard();
 
   const isPipeTool = activeTool === "place-pipe";
   const isConnectorTool = activeTool === "place-connector";
@@ -249,6 +256,10 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
 
   const handleClick = (layer: LayerSpec) => (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
+    // A camera-orbit drag starts and ends on this same huge catcher plane,
+    // which otherwise looks just like a click to three.js — ignore it if
+    // the pointer actually moved (see useClickGuard).
+    if (wasDragged(e.nativeEvent)) return;
     const aim = resolvePoint(eventToPoint(e, layer), e.nativeEvent.shiftKey, layer);
 
     if (isPipeTool) {
@@ -294,14 +305,15 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
             sectionSize={gridSpacingPx * 5}
             cellThickness={0.5}
             sectionThickness={1}
-            cellColor="#173137"
-            sectionColor="#22d3ee"
+            cellColor="#1c2130"
+            sectionColor={SELECTION_COLOR_3D}
             fadeDistance={fadeDistance}
             fadeStrength={1}
           />
           <mesh
             position={layer.position}
             rotation={layer.catcherRotation}
+            onPointerDown={(e) => markPointerDown(e.nativeEvent)}
             onPointerMove={handleMove(layer)}
             onPointerLeave={() => setHover(null)}
             onClick={handleClick(layer)}
@@ -315,7 +327,7 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
       {isPipeTool && previewStart3D && (
         <mesh position={previewStart3D}>
           <sphereGeometry args={[previewRadius + 2, 12, 12]} />
-          <meshStandardMaterial color="#22d3ee" />
+          <meshStandardMaterial color={SELECTION_COLOR_3D} />
         </mesh>
       )}
       {isPipeTool && previewStart3D && previewEnd3D && (
@@ -333,7 +345,7 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
             return (
               <mesh key={deg} position={mid} quaternion={quat}>
                 <cylinderGeometry args={[radius, radius, armLength, 10]} />
-                <meshStandardMaterial color="#22d3ee" transparent opacity={0.6} />
+                <meshStandardMaterial color={SELECTION_COLOR_3D} transparent opacity={0.6} />
               </mesh>
             );
           })}
@@ -359,7 +371,7 @@ function PipePreviewCylinder({
   return (
     <mesh position={mid} quaternion={quat}>
       <cylinderGeometry args={[radius, radius, length, 12]} />
-      <meshStandardMaterial color="#22d3ee" transparent opacity={0.6} />
+      <meshStandardMaterial color={SELECTION_COLOR_3D} transparent opacity={0.6} />
     </mesh>
   );
 }
