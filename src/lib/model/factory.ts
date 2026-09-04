@@ -4,7 +4,7 @@ import {
   Light,
   PipeSegment,
   PipeSize,
-  Point,
+  Point3D,
   Project,
   Structure,
   StructureImage,
@@ -62,8 +62,8 @@ export function createStructure(
 
 export function createPipe(
   size: PipeSize,
-  start: Point,
-  end: Point,
+  start: Point3D,
+  end: Point3D,
 ): PipeSegment {
   return {
     id: generatePipeId(),
@@ -78,7 +78,7 @@ export function createPipe(
 export function createConnector(
   type: ConnectorType,
   size: PipeSize,
-  position: Point,
+  position: Point3D,
   rotation = 0,
 ): ConnectorInstance {
   return {

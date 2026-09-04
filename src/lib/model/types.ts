@@ -1,8 +1,11 @@
 /**
  * Core domain types shared across View Mode, Build Mode, Inventory, and
- * Studio Mode. All coordinates stored on domain objects are in
- * "structure-local pixel space" (see src/lib/canvas/coordinates.ts) unless
- * otherwise noted.
+ * Studio Mode. Flat 2D content (calibration points, which are measured
+ * directly on the structure image) is stored in "structure-local pixel
+ * space" (see src/lib/canvas/coordinates.ts) as a `Point`. Pipes/connectors
+ * are free 3D geometry and use `Point3D` (structure-local scene units — see
+ * src/lib/canvas3d/coordinates3d.ts) so they aren't confined to the image's
+ * flat plane.
  */
 
 export type Units = "in" | "ft" | "cm" | "m";
@@ -10,6 +13,18 @@ export type Units = "in" | "ft" | "cm" | "m";
 export interface Point {
   x: number;
   y: number;
+}
+
+/**
+ * A free 3D point (scene units, structure-local — see coordinates3d.ts).
+ * Pipes/connectors are placed with one of these per endpoint/position, so a
+ * pipe can run in any direction rather than being confined to a single flat
+ * plane.
+ */
+export interface Point3D {
+  x: number;
+  y: number;
+  z: number;
 }
 
 /** A 2-point real-world scale calibration for a structure image. */
@@ -50,24 +65,24 @@ export const CONNECTOR_TYPES: ConnectorType[] = [
   "fourWay",
 ];
 
-/** A single placed pipe segment, stored in structure-local pixel space. */
+/** A single placed pipe segment. Endpoints are free 3D points — a pipe can run in any direction. */
 export interface PipeSegment {
   id: string;
   kind: "pipe";
   size: PipeSize;
-  start: Point;
-  end: Point;
+  start: Point3D;
+  end: Point3D;
   locked: boolean;
   label?: string;
 }
 
-/** A single placed connector/fitting, stored in structure-local pixel space. */
+/** A single placed connector/fitting, positioned at a free 3D point. */
 export interface ConnectorInstance {
   id: string;
   kind: "connector";
   type: ConnectorType;
   size: PipeSize;
-  position: Point;
+  position: Point3D;
   /** Rotation in degrees. */
   rotation: number;
   locked: boolean;

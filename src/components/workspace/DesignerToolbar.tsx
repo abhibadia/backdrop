@@ -3,6 +3,7 @@
 import {
   CircleDot,
   Hand,
+  ImageIcon,
   Lock,
   Maximize2,
   MinusIcon,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import { IconButton } from "@/components/ui/IconButton";
+import { ToggleChip } from "@/components/ui/ToggleChip";
 import { Button } from "@/components/ui/Button";
 import { PipeTypeSelector } from "@/components/construction/PipeTypeSelector";
 import { ConnectorTypeSelector } from "@/components/construction/ConnectorTypeSelector";
@@ -40,6 +42,9 @@ export function DesignerToolbar() {
   const setActivePipeSize = useUIStore((s) => s.setActivePipeSize);
   const activeConnectorType = useUIStore((s) => s.activeConnectorType);
   const setActiveConnectorType = useUIStore((s) => s.setActiveConnectorType);
+  const touchImageOnly = useUIStore((s) => s.touchImageOnly);
+  const toggleTouchImageOnly = useUIStore((s) => s.toggleTouchImageOnly);
+  const requestAxisView = useUIStore((s) => s.requestAxisView);
   const activeStructureId = useUIStore((s) => s.activeStructureId);
   const selectedStructureId = useUIStore((s) => s.selectedStructureId);
   const enterBuildMode = useUIStore((s) => s.enterBuildMode);
@@ -55,11 +60,14 @@ export function DesignerToolbar() {
   const targetStructureId = mode === "build" ? activeStructureId : selectedStructureId;
   const targetStructure = targetStructureId ? project.structures[targetStructureId] : null;
 
+  const requiresCalibration = (tool: BuildTool) => tool === "place-pipe" || tool === "place-connector";
+
   const handleToolClick = (tool: BuildTool) => {
     if (tool === "calibrate") {
       if (targetStructureId) startCalibration(targetStructureId);
       return;
     }
+    if (requiresCalibration(tool) && !targetStructure?.calibration) return;
     setActiveTool(tool);
   };
 
@@ -101,9 +109,16 @@ export function DesignerToolbar() {
         {TOOLS.map((tool) => (
           <IconButton
             key={tool.id}
-            label={`${tool.label} (${tool.shortcut})`}
+            label={
+              requiresCalibration(tool.id) && targetStructure && !targetStructure.calibration
+                ? `${tool.label} (${tool.shortcut}) — calibrate this structure first`
+                : `${tool.label} (${tool.shortcut})`
+            }
             active={activeTool === tool.id}
-            disabled={tool.id !== "select" && tool.id !== "pan" && !targetStructureId}
+            disabled={
+              (tool.id !== "select" && tool.id !== "pan" && !targetStructureId) ||
+              (requiresCalibration(tool.id) && !targetStructure?.calibration)
+            }
             onClick={() => handleToolClick(tool.id)}
           >
             {tool.icon}
@@ -128,9 +143,27 @@ export function DesignerToolbar() {
           />
         </>
       )}
+      {(activeTool === "place-pipe" || activeTool === "place-connector") && targetStructureId && (
+        <>
+          <span className="h-5 w-px bg-border" />
+          <ToggleChip
+            pressed={touchImageOnly}
+            onClick={toggleTouchImageOnly}
+            title="Only place points directly on the structure image — everywhere else off"
+          >
+            <ImageIcon size={11} className="mr-1" />
+            Touch Image
+          </ToggleChip>
+        </>
+      )}
       {requiresStructure && !targetStructureId && (
         <span className="font-mono text-[10px] uppercase tracking-wider text-warning">
           Select a structure first
+        </span>
+      )}
+      {requiresStructure && targetStructure && !targetStructure.calibration && (
+        <span className="font-mono text-[10px] uppercase tracking-wider text-warning">
+          Calibrate this structure first (Scale tool)
         </span>
       )}
 
@@ -158,6 +191,21 @@ export function DesignerToolbar() {
           {constructionLocked ? "Unlock Construction" : "Lock Construction"}
         </Button>
       )}
+
+      <span className="h-5 w-px bg-border" />
+
+      <div className="flex items-center gap-0.5">
+        {(["x", "y", "z"] as const).map((axis) => (
+          <IconButton
+            key={axis}
+            label={`View along ${axis.toUpperCase()} axis`}
+            onClick={() => requestAxisView(axis)}
+            className="font-mono text-[11px] font-semibold"
+          >
+            {axis.toUpperCase()}
+          </IconButton>
+        ))}
+      </div>
 
       <span className="h-5 w-px bg-border" />
 

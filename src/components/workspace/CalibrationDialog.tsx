@@ -45,7 +45,7 @@ export function CalibrationDialog() {
         if (!next) handleCancel();
       }}
       title="Calibrate scale"
-      description="Enter the real-world distance between the two points you placed."
+      description="Enter the real-world length of the edge you selected."
     >
       {/* Keyed by session so each calibration attempt starts with fresh, uncontrolled-feeling defaults. */}
       <CalibrationForm

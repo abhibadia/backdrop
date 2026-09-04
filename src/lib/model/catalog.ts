@@ -6,34 +6,39 @@ import {
   PipeSize,
 } from "./types";
 
+/**
+ * `PipeSize` denotes standard stock *length* — "full" is a 2m piece, and the
+ * other sizes are proportional fractions of that (quarter=0.5m, half=1m,
+ * threeQuarter=1.5m) — not pipe diameter. Every physical pipe/connector in
+ * this system has the same diameter; what varies is how long a stock piece
+ * is, which is what these labels/nominal lengths describe.
+ */
 export const PIPE_SIZE_LABEL: Record<PipeSize, string> = {
-  quarter: '1/4"',
-  half: '1/2"',
-  threeQuarter: '3/4"',
-  full: 'Full (1")',
+  quarter: "0.5m",
+  half: "1m",
+  threeQuarter: "1.5m",
+  full: "2m",
 };
 
-/** Nominal outer diameter in inches, used only for relative visual scale. */
-export const PIPE_SIZE_DIAMETER_IN: Record<PipeSize, number> = {
-  quarter: 0.25,
-  half: 0.5,
-  threeQuarter: 0.75,
-  full: 1,
+/** Nominal stock length in meters, per size — see the `PipeSize` note above. */
+export const PIPE_SIZE_NOMINAL_LENGTH_M: Record<PipeSize, number> = {
+  quarter: 0.5,
+  half: 1,
+  threeQuarter: 1.5,
+  full: 2,
 };
+
+const M_TO_IN = 39.3700787401575;
 
 /**
- * PLACEHOLDER nominal pipe lengths, in inches. Real-world stock lengths
- * weren't specified, so these are round configurable stand-ins — edit
- * freely to match actual inventory. Used only for the "≈ nearest size"
- * classification hint shown while drawing; drawn pipe length is never
- * snapped/forced to these values.
+ * Nominal stock lengths in inches (derived from the meter values above), for
+ * comparison against drawn pipe lengths — see `classifyPipeLengthIn`. Used
+ * only for the "≈ nearest size" classification hint shown while drawing;
+ * drawn pipe length is never snapped/forced to these values.
  */
-export const PIPE_SIZE_NOMINAL_LENGTH_IN: Record<PipeSize, number> = {
-  quarter: 24,
-  half: 48,
-  threeQuarter: 72,
-  full: 96,
-};
+export const PIPE_SIZE_NOMINAL_LENGTH_IN: Record<PipeSize, number> = Object.fromEntries(
+  PIPE_SIZES.map((size) => [size, PIPE_SIZE_NOMINAL_LENGTH_M[size] * M_TO_IN]),
+) as Record<PipeSize, number>;
 
 /** Default +/- tolerance (inches) for matching a drawn length to a nominal size. */
 export const PIPE_CLASSIFICATION_TOLERANCE_IN = 0.5;
@@ -80,6 +85,22 @@ export const CONNECTOR_TYPE_PORTS: Record<ConnectorType, number> = {
   flange: 1,
   cap: 1,
   fourWay: 4,
+};
+
+/**
+ * Port stub directions (degrees, 0 = +x, counter-clockwise) that define each
+ * connector type's icon/glyph — shared by the 2D canvas glyph and the 3D
+ * fitting mesh so the two stay visually consistent.
+ */
+export const CONNECTOR_PORT_ANGLES: Record<ConnectorType, number[]> = {
+  elbow90: [180, 270],
+  elbow45: [180, 225],
+  tee: [90, 180, 270],
+  cross: [0, 90, 180, 270],
+  fourWay: [0, 90, 180, 270],
+  coupler: [0, 180],
+  flange: [180],
+  cap: [180],
 };
 
 export function pipePartKey(size: PipeSize): string {

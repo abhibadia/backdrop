@@ -9,8 +9,10 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { CONNECTOR_TYPE_LABEL, CONNECTOR_TYPE_PORTS } from "@/lib/model/catalog";
 import { createConnector } from "@/lib/model/factory";
+import { distance } from "@/lib/utils/geometry";
 import { PipeTypeSelector } from "./PipeTypeSelector";
 import { ConnectorTypeSelector } from "./ConnectorTypeSelector";
+import { Vector3Fields } from "./Vector3Fields";
 
 interface ConnectorInspectorProps {
   structure: Structure;
@@ -26,12 +28,13 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
 
   // Count pipe endpoints coincident with this connector's position as a
   // rough "used ports" estimate (connectors don't model discrete port ids).
+  // Distance is full 3D, so a pipe endpoint only counts as connected if it's
+  // actually at the connector's position, depth included.
   const tolerance = 6;
   const usedPorts = Object.values(structure.pipes).filter(
     (pipe) =>
-      Math.hypot(pipe.start.x - connector.position.x, pipe.start.y - connector.position.y) <=
-        tolerance ||
-      Math.hypot(pipe.end.x - connector.position.x, pipe.end.y - connector.position.y) <= tolerance,
+      distance(pipe.start, connector.position) <= tolerance ||
+      distance(pipe.end, connector.position) <= tolerance,
   ).length;
   const totalPorts = CONNECTOR_TYPE_PORTS[connector.type];
 
@@ -52,6 +55,7 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
               const copy = createConnector(connector.type, connector.size, {
                 x: connector.position.x + 20,
                 y: connector.position.y + 20,
+                z: connector.position.z,
               });
               addConnector(structure.id, copy);
               setSelectedElementIds([copy.id]);
@@ -119,9 +123,11 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
         )}
       </div>
 
-      <p className="font-mono text-[10px] text-foreground-subtle">
-        Position {connector.position.x.toFixed(0)}, {connector.position.y.toFixed(0)}
-      </p>
+      <Vector3Fields
+        label="Position"
+        value={connector.position}
+        onChange={(next) => updateConnector(structure.id, connector.id, { position: next })}
+      />
     </Panel>
   );
 }

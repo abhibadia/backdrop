@@ -42,7 +42,7 @@ export function CalibrationPanel({ structureId }: CalibrationPanelProps) {
       {isCalibrating ? (
         <div className="flex flex-col gap-1.5">
           <p className="font-mono text-[10px] uppercase tracking-wider text-accent">
-            Click two points on the image...
+            Click the image edge you want to measure...
           </p>
           <Button size="sm" variant="ghost" onClick={() => setActiveTool("select")}>
             Cancel

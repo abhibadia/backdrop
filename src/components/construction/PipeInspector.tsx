@@ -8,8 +8,9 @@ import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { distance } from "@/lib/utils/geometry";
 import { convertUnits, formatReal, pxToReal } from "@/lib/utils/units";
-import { classifyPipeLengthIn, PIPE_SIZE_NOMINAL_LENGTH_IN } from "@/lib/model/catalog";
+import { classifyPipeLengthIn, PIPE_SIZE_LABEL } from "@/lib/model/catalog";
 import { PipeTypeSelector } from "./PipeTypeSelector";
+import { Vector3Fields } from "./Vector3Fields";
 import { createPipe } from "@/lib/model/factory";
 
 interface PipeInspectorProps {
@@ -30,7 +31,6 @@ export function PipeInspector({ structure, pipe }: PipeInspectorProps) {
     ? convertUnits(lengthReal!, structure.calibration.unit, "in")
     : null;
   const classified = lengthIn !== null ? classifyPipeLengthIn(lengthIn) : null;
-  const nominalIn = PIPE_SIZE_NOMINAL_LENGTH_IN[pipe.size];
 
   return (
     <Panel
@@ -49,8 +49,8 @@ export function PipeInspector({ structure, pipe }: PipeInspectorProps) {
               const offset = 16;
               const copy = createPipe(
                 pipe.size,
-                { x: pipe.start.x + offset, y: pipe.start.y + offset },
-                { x: pipe.end.x + offset, y: pipe.end.y + offset },
+                { x: pipe.start.x + offset, y: pipe.start.y + offset, z: pipe.start.z },
+                { x: pipe.end.x + offset, y: pipe.end.y + offset, z: pipe.end.z },
               );
               addPipe(structure.id, copy);
               setSelectedElementIds([copy.id]);
@@ -92,7 +92,7 @@ export function PipeInspector({ structure, pipe }: PipeInspectorProps) {
         </div>
         <div>
           <p className="text-foreground-subtle">Nominal</p>
-          <p className="text-foreground">{nominalIn}&quot;</p>
+          <p className="text-foreground">{PIPE_SIZE_LABEL[pipe.size]}</p>
         </div>
       </div>
 
@@ -108,14 +108,16 @@ export function PipeInspector({ structure, pipe }: PipeInspectorProps) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 font-mono text-[10px] text-foreground-subtle">
-        <span>
-          Start {pipe.start.x.toFixed(0)}, {pipe.start.y.toFixed(0)}
-        </span>
-        <span>
-          End {pipe.end.x.toFixed(0)}, {pipe.end.y.toFixed(0)}
-        </span>
-      </div>
+      <Vector3Fields
+        label="Start"
+        value={pipe.start}
+        onChange={(next) => updatePipe(structure.id, pipe.id, { start: next })}
+      />
+      <Vector3Fields
+        label="End"
+        value={pipe.end}
+        onChange={(next) => updatePipe(structure.id, pipe.id, { end: next })}
+      />
     </Panel>
   );
 }

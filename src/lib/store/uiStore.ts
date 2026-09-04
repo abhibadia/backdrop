@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ConnectorType, PipeSize, Point } from "@/lib/model/types";
+import { useProjectStore } from "@/lib/store/projectStore";
 
 export type AppMode = "view" | "build" | "studio" | "inventory";
 
@@ -51,6 +52,14 @@ interface UIState {
   toggleGrid: () => void;
   snapEnabled: boolean;
   toggleSnap: () => void;
+  /** When on, the Pipe/Connector tools can only place points on the structure image's own plane. */
+  touchImageOnly: boolean;
+  toggleTouchImageOnly: () => void;
+
+  /** Set to snap the 3D camera to look straight down one world axis; cleared once handled. */
+  axisViewRequest: "x" | "y" | "z" | null;
+  requestAxisView: (axis: "x" | "y" | "z") => void;
+  clearAxisViewRequest: () => void;
 
   /** View Mode visibility toggles (§12). Build Mode always shows construction/measurements. */
   showImages: boolean;
@@ -69,7 +78,8 @@ interface UIState {
 
   /** In-progress 2-point calibration click capture, in the target structure's local pixel space. */
   calibrationDraft: { pointA: Point | null; pointB: Point | null };
-  addCalibrationPoint: (point: Point) => void;
+  /** Sets both calibration draft points at once — the Ruler tool selects a whole image edge per click. */
+  setCalibrationDraftPoints: (pointA: Point, pointB: Point) => void;
   clearCalibrationDraft: () => void;
   startCalibration: (structureId: string) => void;
   /** Increments every time a calibration session starts, used to force-remount the input form. */
@@ -82,13 +92,20 @@ export const useUIStore = create<UIState>((set, get) => ({
 
   activeStructureId: null,
   setActiveStructureId: (id) => set({ activeStructureId: id }),
-  enterBuildMode: (structureId) =>
+  enterBuildMode: (structureId) => {
+    // Strict Build Mode requirement: the structure being built on is locked
+    // to the world origin with no rotation, so its structure-local frame
+    // coincides with world space while building (see coordinates3d.ts) and
+    // pipe/connector points don't need to account for wherever the image
+    // happened to be left in View Mode.
+    useProjectStore.getState().setStructureTransform(structureId, { x: 0, y: 0, rotation: 0 });
     set({
       mode: "build",
       activeStructureId: structureId,
       selectedElementIds: [],
       activeTool: "select",
-    }),
+    });
+  },
   exitBuildMode: () =>
     set({ mode: "view", activeTool: "select", selectedElementIds: [] }),
 
@@ -134,6 +151,12 @@ export const useUIStore = create<UIState>((set, get) => ({
   toggleGrid: () => set((state) => ({ gridEnabled: !state.gridEnabled })),
   snapEnabled: true,
   toggleSnap: () => set((state) => ({ snapEnabled: !state.snapEnabled })),
+  touchImageOnly: false,
+  toggleTouchImageOnly: () => set((state) => ({ touchImageOnly: !state.touchImageOnly })),
+
+  axisViewRequest: null,
+  requestAxisView: (axis) => set({ axisViewRequest: axis }),
+  clearAxisViewRequest: () => set({ axisViewRequest: null }),
 
   showImages: true,
   toggleShowImages: () => set((state) => ({ showImages: !state.showImages })),
@@ -149,16 +172,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   setSelectedStructureId: (id) => set({ selectedStructureId: id }),
 
   calibrationDraft: { pointA: null, pointB: null },
-  addCalibrationPoint: (point) =>
-    set((state) => {
-      if (!state.calibrationDraft.pointA) {
-        return { calibrationDraft: { pointA: point, pointB: null } };
-      }
-      if (!state.calibrationDraft.pointB) {
-        return { calibrationDraft: { ...state.calibrationDraft, pointB: point } };
-      }
-      return { calibrationDraft: { pointA: point, pointB: null } };
-    }),
+  setCalibrationDraftPoints: (pointA, pointB) => set({ calibrationDraft: { pointA, pointB } }),
   clearCalibrationDraft: () => set({ calibrationDraft: { pointA: null, pointB: null } }),
   startCalibration: (structureId) =>
     set((state) => ({

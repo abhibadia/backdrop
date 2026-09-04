@@ -45,13 +45,15 @@ export function useKeyboardShortcuts() {
         case "p":
         case "P": {
           const structureId = ui.mode === "build" ? ui.activeStructureId : ui.selectedStructureId;
-          if (structureId) ui.setActiveTool("place-pipe");
+          const structure = structureId ? useProjectStore.getState().project.structures[structureId] : null;
+          if (structure?.calibration) ui.setActiveTool("place-pipe");
           return;
         }
         case "c":
         case "C": {
           const structureId = ui.mode === "build" ? ui.activeStructureId : ui.selectedStructureId;
-          if (structureId) ui.setActiveTool("place-connector");
+          const structure = structureId ? useProjectStore.getState().project.structures[structureId] : null;
+          if (structure?.calibration) ui.setActiveTool("place-connector");
           return;
         }
         case "s":
