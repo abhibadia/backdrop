@@ -6,6 +6,12 @@ import { distance } from "@/lib/utils/geometry";
 export const CONNECTOR_ATTACH_TOLERANCE = 15;
 /** How close (degrees) an existing pipe's angle must be to a port's angle to count as occupying it. */
 const PORT_ANGLE_MATCH_TOLERANCE_DEG = 25;
+/**
+ * Magnet radius (scene units) for snapping a dragged connector onto a nearby
+ * unconnected pipe end — a bit more forgiving than CONNECTOR_ATTACH_TOLERANCE
+ * since a mouse drag is never as precise as a deliberate click.
+ */
+export const CONNECTOR_DRAG_SNAP_TOLERANCE = 25;
 
 export interface ConnectorPortInfo {
   /** Absolute angle (degrees, connector.rotation already applied), XY-plane, one per port. */
@@ -91,4 +97,32 @@ export function findNearbyConnector(structure: Structure, point: Point3D): Conne
     if (distance(point, connector.position) <= CONNECTOR_ATTACH_TOLERANCE) return connector;
   }
   return null;
+}
+
+/**
+ * Pipe endpoints that aren't already plugged into some *other* connector,
+ * restricted to the given structure-local Z — the only depth a dragged
+ * connector can ever land on, since a drag gesture stays within one flat
+ * plane the whole time (see useGroundDrag). `excludeConnectorId` leaves out
+ * the connector being dragged itself, so the end it's already attached to
+ * (if any) still counts as a valid, snappable spot rather than "occupied by
+ * me". Feed the result to `snapToCandidates` to let a drag magnet onto one
+ * once the pointer gets close, while still tracking the pointer freely
+ * everywhere else.
+ */
+export function freePipeEndsOnPlane(structure: Structure, z: number, excludeConnectorId: string): Point3D[] {
+  const ends: Point3D[] = [];
+  const seen = new Set<string>();
+  for (const pipe of Object.values(structure.pipes)) {
+    for (const end of [pipe.start, pipe.end]) {
+      if (Math.abs(end.z - z) > 0.01) continue;
+      const key = `${end.x},${end.y},${end.z}`;
+      if (seen.has(key)) continue; // two pipes can share an endpoint
+      const occupant = findNearbyConnector(structure, end);
+      if (occupant && occupant.id !== excludeConnectorId) continue;
+      seen.add(key);
+      ends.push(end);
+    }
+  }
+  return ends;
 }

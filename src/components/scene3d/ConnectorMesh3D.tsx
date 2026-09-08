@@ -8,6 +8,8 @@ import { useGroundDrag } from "@/lib/canvas3d/useGroundDrag";
 import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
 import { CONNECTOR_ARM_LENGTH_3D, PIPE_RADIUS_3D, SELECTION_COLOR_3D } from "@/lib/model/render";
 import { CONNECTOR_PORT_ANGLES } from "@/lib/model/catalog";
+import { CONNECTOR_DRAG_SNAP_TOLERANCE, freePipeEndsOnPlane } from "@/lib/model/connectorPorts";
+import { snapToCandidates } from "@/lib/utils/geometry";
 import { useProjectStore } from "@/lib/store/projectStore";
 import { useUIStore } from "@/lib/store/uiStore";
 
@@ -41,9 +43,16 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   const angles = CONNECTOR_PORT_ANGLES[connector.type] ?? [];
   const color = isSelected ? SELECTION_COLOR_3D : connector.locked ? "#5b616c" : "#f0ead9";
 
+  // Dragging a connector magnets onto a nearby unconnected pipe end once the
+  // pointer gets close (snapToCandidates falls back to the raw point when
+  // nothing is close enough), so a slightly-off drag still plugs the two
+  // together — while the pointer stays free to land anywhere else.
   const beginDrag = useGroundDrag((point) => {
+    const z = connector.position.z;
+    const candidates = freePipeEndsOnPlane(structure, z, connector.id);
+    const snapped = snapToCandidates({ ...point, z }, candidates, CONNECTOR_DRAG_SNAP_TOLERANCE);
     updateConnector(structure.id, connector.id, {
-      position: { x: point.x, y: point.y, z: connector.position.z },
+      position: { x: snapped.x, y: snapped.y, z },
     });
   }, connector.position.z);
 
