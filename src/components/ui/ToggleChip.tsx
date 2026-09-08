@@ -13,7 +13,7 @@ export function ToggleChip({ pressed, className, children, ...props }: ToggleChi
       type="button"
       aria-pressed={pressed}
       className={clsx(
-        "inline-flex h-7 items-center rounded-full border px-3 font-mono text-[10px] uppercase tracking-wider transition-colors",
+        "inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full border px-3 font-mono text-[10px] uppercase tracking-wider transition-colors",
         pressed
           ? "border-accent/50 bg-accent-soft text-accent"
           : "border-border text-foreground-subtle hover:text-foreground-muted",

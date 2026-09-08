@@ -7,13 +7,10 @@ import { CONNECTOR_TYPE_LABEL } from "@/lib/model/catalog";
 /** Compact technical abbreviations shown on connector-type buttons. */
 export const CONNECTOR_TYPE_SHORT_LABEL: Record<ConnectorType, string> = {
   elbow90: "90°",
-  elbow45: "45°",
   tee: "T",
-  cross: "+",
   fourWay: "4W",
   coupler: "—",
-  flange: "|—",
-  cap: "—◦",
+  triangle: "△",
 };
 
 interface ConnectorTypeSelectorProps {
@@ -24,7 +21,7 @@ interface ConnectorTypeSelectorProps {
 
 export function ConnectorTypeSelector({ value, onChange, className }: ConnectorTypeSelectorProps) {
   return (
-    <div className={clsx("grid grid-cols-4 gap-2", className)}>
+    <div className={clsx("grid shrink-0 grid-cols-5 gap-2", className)}>
       {CONNECTOR_TYPES.map((type) => (
         <button
           key={type}

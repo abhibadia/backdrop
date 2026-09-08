@@ -83,8 +83,8 @@ export function DesignerToolbar() {
   const constructionLocked = activeStructure?.constructionLocked ?? false;
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-surface px-3">
-      <div className="flex items-center overflow-hidden rounded-md border border-border">
+    <div className="scrollbar-thin flex h-11 shrink-0 items-center gap-3 overflow-x-auto overflow-y-hidden border-b border-border bg-surface px-3">
+      <div className="flex shrink-0 items-center overflow-hidden rounded-md border border-border">
         {(["view", "build"] as const).map((m) => (
           <button
             key={m}
@@ -92,7 +92,7 @@ export function DesignerToolbar() {
             disabled={m === "build" && !selectedStructureId && !activeStructureId}
             onClick={() => handleModeChange(m)}
             className={clsx(
-              "h-7 px-3 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30",
+              "h-7 shrink-0 px-3 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:cursor-not-allowed disabled:opacity-30",
               mode === m
                 ? "bg-accent text-accent-on"
                 : "bg-surface-elevated text-foreground-muted hover:text-foreground",
@@ -103,9 +103,9 @@ export function DesignerToolbar() {
         ))}
       </div>
 
-      <span className="h-5 w-px bg-border" />
+      <span className="h-5 w-px shrink-0 bg-border" />
 
-      <div className="flex items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         {TOOLS.map((tool) => (
           <IconButton
             key={tool.id}
@@ -128,24 +128,20 @@ export function DesignerToolbar() {
 
       {activeTool === "place-pipe" && (
         <>
-          <span className="h-5 w-px bg-border" />
-          <PipeTypeSelector value={activePipeSize} onChange={setActivePipeSize} />
+          <span className="h-5 w-px shrink-0 bg-border" />
+          <PipeTypeSelector value={activePipeSize} onChange={setActivePipeSize} className="flex-nowrap" />
         </>
       )}
       {activeTool === "place-connector" && (
         <>
-          <span className="h-5 w-px bg-border" />
-          <PipeTypeSelector value={activePipeSize} onChange={setActivePipeSize} />
-          <ConnectorTypeSelector
-            value={activeConnectorType}
-            onChange={setActiveConnectorType}
-            className="grid-cols-8"
-          />
+          <span className="h-5 w-px shrink-0 bg-border" />
+          <PipeTypeSelector value={activePipeSize} onChange={setActivePipeSize} className="flex-nowrap" />
+          <ConnectorTypeSelector value={activeConnectorType} onChange={setActiveConnectorType} />
         </>
       )}
       {(activeTool === "place-pipe" || activeTool === "place-connector") && targetStructureId && (
         <>
-          <span className="h-5 w-px bg-border" />
+          <span className="h-5 w-px shrink-0 bg-border" />
           <ToggleChip
             pressed={touchImageOnly}
             onClick={toggleTouchImageOnly}
@@ -157,20 +153,20 @@ export function DesignerToolbar() {
         </>
       )}
       {requiresStructure && !targetStructureId && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-warning">
+        <span className="shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-warning">
           Select a structure first
         </span>
       )}
       {requiresStructure && targetStructure && !targetStructure.calibration && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-warning">
+        <span className="shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-warning">
           Calibrate this structure first (Scale tool)
         </span>
       )}
 
-      <div className="flex-1" />
+      <div className="min-w-3 flex-1" />
 
       {targetStructure && (
-        <span className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
+        <span className="shrink-0 whitespace-nowrap font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
           {targetStructure.name} · {STRUCTURE_STATUS_LABEL[getStructureStatus(targetStructure)]}
         </span>
       )}
@@ -192,9 +188,9 @@ export function DesignerToolbar() {
         </Button>
       )}
 
-      <span className="h-5 w-px bg-border" />
+      <span className="h-5 w-px shrink-0 bg-border" />
 
-      <div className="flex items-center gap-0.5">
+      <div className="flex shrink-0 items-center gap-0.5">
         {(["x", "y", "z"] as const).map((axis) => (
           <IconButton
             key={axis}
@@ -207,13 +203,13 @@ export function DesignerToolbar() {
         ))}
       </div>
 
-      <span className="h-5 w-px bg-border" />
+      <span className="h-5 w-px shrink-0 bg-border" />
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         <IconButton label="Zoom out" onClick={zoomOut}>
           <ZoomOut size={15} />
         </IconButton>
-        <span className="w-10 text-center font-mono text-[11px] text-foreground-muted">
+        <span className="w-10 shrink-0 text-center font-mono text-[11px] text-foreground-muted">
           {Math.round(viewport.scale * 100)}%
         </span>
         <IconButton label="Zoom in" onClick={zoomIn}>

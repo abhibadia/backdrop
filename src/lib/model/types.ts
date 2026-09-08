@@ -46,23 +46,17 @@ export const PIPE_SIZES: PipeSize[] = ["quarter", "half", "threeQuarter", "full"
 /** Connector/fitting kinds supported by the build system. */
 export type ConnectorType =
   | "elbow90"
-  | "elbow45"
   | "tee"
-  | "cross"
+  | "fourWay"
   | "coupler"
-  | "flange"
-  | "cap"
-  | "fourWay";
+  | "triangle";
 
 export const CONNECTOR_TYPES: ConnectorType[] = [
   "elbow90",
-  "elbow45",
   "tee",
-  "cross",
-  "coupler",
-  "flange",
-  "cap",
   "fourWay",
+  "coupler",
+  "triangle",
 ];
 
 /** A single placed pipe segment. Endpoints are free 3D points — a pipe can run in any direction. */
