@@ -43,14 +43,28 @@ export type PipeSize = "quarter" | "half" | "threeQuarter" | "full";
 
 export const PIPE_SIZES: PipeSize[] = ["quarter", "half", "threeQuarter", "full"];
 
-/** Connector/fitting kinds supported by the build system. */
+/**
+ * Connector/fitting kinds recognized by the build system. This includes four
+ * retired types (elbow45, cross, flange, cap) alongside the five current
+ * ones — kept purely so a connector of a retired type that's already saved
+ * in someone's project still resolves to real geometry/labels (see
+ * CONNECTOR_PORT_ANGLES etc. in catalog.ts) instead of crashing the 3D view.
+ * They are deliberately excluded from `CONNECTOR_TYPES` below, which is what
+ * drives the type picker — so they can't be placed again, only still exist
+ * where they already were.
+ */
 export type ConnectorType =
   | "elbow90"
   | "tee"
   | "fourWay"
   | "coupler"
-  | "triangle";
+  | "triangle"
+  | "elbow45"
+  | "cross"
+  | "flange"
+  | "cap";
 
+/** The five connector types offered for new placement — see the ConnectorType note above. */
 export const CONNECTOR_TYPES: ConnectorType[] = [
   "elbow90",
   "tee",

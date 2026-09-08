@@ -36,7 +36,9 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   );
   const armLength = CONNECTOR_ARM_LENGTH_3D;
   const radius = PIPE_RADIUS_3D * 1.15;
-  const angles = CONNECTOR_PORT_ANGLES[connector.type];
+  // Falls back to no arms rather than crashing if a project somehow carries
+  // a connector type this build doesn't recognize at all.
+  const angles = CONNECTOR_PORT_ANGLES[connector.type] ?? [];
   const color = isSelected ? SELECTION_COLOR_3D : connector.locked ? "#5b616c" : "#f0ead9";
 
   const beginDrag = useGroundDrag((point) => {

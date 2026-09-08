@@ -26,7 +26,9 @@ function angleTo(from: Point3D, to: Point3D): number {
 
 /** Every port's absolute angle and whether an existing pipe already occupies it. */
 export function getConnectorPortInfo(structure: Structure, connector: ConnectorInstance): ConnectorPortInfo {
-  const angles = CONNECTOR_PORT_ANGLES[connector.type].map((a) => (a + connector.rotation + 360) % 360);
+  const angles = (CONNECTOR_PORT_ANGLES[connector.type] ?? []).map(
+    (a) => (a + connector.rotation + 360) % 360,
+  );
   const occupied = angles.map(() => false);
 
   for (const pipe of Object.values(structure.pipes)) {

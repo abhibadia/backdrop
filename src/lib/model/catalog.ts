@@ -70,6 +70,13 @@ export const CONNECTOR_TYPE_LABEL: Record<ConnectorType, string> = {
   fourWay: "4-Way",
   coupler: "Coupler",
   triangle: "Triangular",
+  // Retired from the picker (see the ConnectorType note in types.ts) but
+  // still labeled so a connector already placed with one of these renders
+  // correctly instead of crashing.
+  elbow45: "45deg Elbow",
+  cross: "Cross",
+  flange: "Flange",
+  cap: "Cap",
 };
 
 /** Number of open pipe ends a connector of this type has, for reference. */
@@ -79,6 +86,10 @@ export const CONNECTOR_TYPE_PORTS: Record<ConnectorType, number> = {
   fourWay: 4,
   coupler: 2,
   triangle: 3,
+  elbow45: 2,
+  cross: 4,
+  flange: 1,
+  cap: 1,
 };
 
 /**
@@ -94,6 +105,10 @@ export const CONNECTOR_PORT_ANGLES: Record<ConnectorType, number[]> = {
   // Evenly spaced 120° apart (a symmetric Y), unlike the Tee's 90/180/270
   // straight-through-plus-branch layout — this is the "triangular" fitting.
   triangle: [90, 210, 330],
+  elbow45: [180, 225],
+  cross: [0, 90, 180, 270],
+  flange: [180],
+  cap: [180],
 };
 
 export function pipePartKey(size: PipeSize): string {

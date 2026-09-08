@@ -4,13 +4,22 @@ import clsx from "clsx";
 import { CONNECTOR_TYPES, ConnectorType } from "@/lib/model/types";
 import { CONNECTOR_TYPE_LABEL } from "@/lib/model/catalog";
 
-/** Compact technical abbreviations shown on connector-type buttons. */
+/**
+ * Compact technical abbreviations shown on connector-type buttons. Only the
+ * five current types (see CONNECTOR_TYPES in types.ts) are ever actually
+ * rendered here — the retired ones are filled in just to satisfy the
+ * Record<ConnectorType, ...> type.
+ */
 export const CONNECTOR_TYPE_SHORT_LABEL: Record<ConnectorType, string> = {
   elbow90: "90°",
   tee: "T",
   fourWay: "4W",
   coupler: "—",
   triangle: "△",
+  elbow45: "45°",
+  cross: "+",
+  flange: "|—",
+  cap: "—◦",
 };
 
 interface ConnectorTypeSelectorProps {
