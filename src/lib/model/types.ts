@@ -27,6 +27,20 @@ export interface Point3D {
   z: number;
 }
 
+/**
+ * A full 3D orientation, degrees per axis, applied in THREE.js's default
+ * Euler order ("XYZ": rotate around X, then the once-rotated Y, then the
+ * twice-rotated Z) — see rotateVector in connectorPorts.ts, which replicates
+ * this exact convention without depending on `three` so the model layer
+ * stays renderer-agnostic. Lets a connector's ports point any direction in
+ * space, not just within the image's flat XY plane.
+ */
+export interface Rotation3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** A 2-point real-world scale calibration for a structure image. */
 export interface Calibration {
   pointA: Point;
@@ -45,13 +59,13 @@ export const PIPE_SIZES: PipeSize[] = ["quarter", "half", "threeQuarter", "full"
 
 /**
  * Connector/fitting kinds recognized by the build system. This includes four
- * retired types (elbow45, cross, flange, cap) alongside the five current
+ * retired types (elbow45, cross, flange, cap) alongside the six current
  * ones — kept purely so a connector of a retired type that's already saved
  * in someone's project still resolves to real geometry/labels (see
- * CONNECTOR_PORT_ANGLES etc. in catalog.ts) instead of crashing the 3D view.
- * They are deliberately excluded from `CONNECTOR_TYPES` below, which is what
- * drives the type picker — so they can't be placed again, only still exist
- * where they already were.
+ * CONNECTOR_PORT_DIRECTIONS etc. in catalog.ts) instead of crashing the 3D
+ * view. They are deliberately excluded from `CONNECTOR_TYPES` below, which is
+ * what drives the type picker — so they can't be placed again, only still
+ * exist where they already were.
  */
 export type ConnectorType =
   | "elbow90"
@@ -59,18 +73,20 @@ export type ConnectorType =
   | "fourWay"
   | "coupler"
   | "triangle"
+  | "triAxis"
   | "elbow45"
   | "cross"
   | "flange"
   | "cap";
 
-/** The five connector types offered for new placement — see the ConnectorType note above. */
+/** The six connector types offered for new placement — see the ConnectorType note above. */
 export const CONNECTOR_TYPES: ConnectorType[] = [
   "elbow90",
   "tee",
   "fourWay",
   "coupler",
   "triangle",
+  "triAxis",
 ];
 
 /** A single placed pipe segment. Endpoints are free 3D points — a pipe can run in any direction. */
@@ -91,8 +107,8 @@ export interface ConnectorInstance {
   type: ConnectorType;
   size: PipeSize;
   position: Point3D;
-  /** Rotation in degrees. */
-  rotation: number;
+  /** Full 3D orientation — lets a connector's ports point any direction, not just within one flat plane. */
+  rotation: Rotation3D;
   locked: boolean;
   label?: string;
 }

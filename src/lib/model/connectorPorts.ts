@@ -1,10 +1,10 @@
-import { ConnectorInstance, Point3D, Structure } from "./types";
-import { CONNECTOR_PORT_ANGLES } from "./catalog";
+import { ConnectorInstance, Point3D, Rotation3D, Structure } from "./types";
+import { CONNECTOR_PORT_DIRECTIONS } from "./catalog";
 import { distance } from "@/lib/utils/geometry";
 
 /** How close a pipe endpoint must be to a connector's position to count as plugged into it. */
 export const CONNECTOR_ATTACH_TOLERANCE = 15;
-/** How close (degrees) an existing pipe's angle must be to a port's angle to count as occupying it. */
+/** How close (degrees) an existing pipe's direction must be to a port's direction to count as occupying it. */
 const PORT_ANGLE_MATCH_TOLERANCE_DEG = 25;
 /**
  * Magnet radius (scene units) for snapping a dragged connector onto a nearby
@@ -14,28 +14,68 @@ const PORT_ANGLE_MATCH_TOLERANCE_DEG = 25;
 export const CONNECTOR_DRAG_SNAP_TOLERANCE = 25;
 
 export interface ConnectorPortInfo {
-  /** Absolute angle (degrees, connector.rotation already applied), XY-plane, one per port. */
-  angles: number[];
-  /** Parallel to `angles` — true where an existing pipe already occupies that port. */
+  /** World-space unit direction vector (connector.rotation already applied), one per port. */
+  directions: Point3D[];
+  /** Parallel to `directions` — true where an existing pipe already occupies that port. */
   occupied: boolean[];
 }
 
-function angleDelta(a: number, b: number): number {
-  const diff = Math.abs(a - b) % 360;
-  return diff > 180 ? 360 - diff : diff;
+/**
+ * Rotates a local direction vector by a connector's full 3D rotation
+ * (degrees), matching THREE.js's default Euler order ("XYZ": rotate around
+ * X, then the once-rotated Y, then the twice-rotated Z — equivalent to
+ * applying Rz first, then Ry, then Rx, to the vector). Deliberately
+ * hand-rolled rather than importing `three` here — this is pure model-layer
+ * math, and ConnectorMesh3D renders the *same* rotation via a plain
+ * `<group rotation={[x,y,z]}>` (R3F's default Euler order), so the two stay
+ * visually and logically consistent without the model layer depending on
+ * the renderer.
+ */
+function rotateVector(v: Point3D, rotation: Rotation3D): Point3D {
+  const rx = (rotation.x * Math.PI) / 180;
+  const ry = (rotation.y * Math.PI) / 180;
+  const rz = (rotation.z * Math.PI) / 180;
+
+  // Around Z
+  const x1 = v.x * Math.cos(rz) - v.y * Math.sin(rz);
+  const y1 = v.x * Math.sin(rz) + v.y * Math.cos(rz);
+  const z1 = v.z;
+
+  // Around Y
+  const x2 = x1 * Math.cos(ry) + z1 * Math.sin(ry);
+  const y2 = y1;
+  const z2 = -x1 * Math.sin(ry) + z1 * Math.cos(ry);
+
+  // Around X
+  const x3 = x2;
+  const y3 = y2 * Math.cos(rx) - z2 * Math.sin(rx);
+  const z3 = y2 * Math.sin(rx) + z2 * Math.cos(rx);
+
+  return { x: x3, y: y3, z: z3 };
 }
 
-/** Direction (degrees, XY-plane, 0 = +x) from `from` to `to` — depth (z) isn't part of a connector's port geometry. */
-function angleTo(from: Point3D, to: Point3D): number {
-  return ((Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI + 360) % 360;
+function normalize(v: Point3D): Point3D {
+  const len = Math.hypot(v.x, v.y, v.z) || 1;
+  return { x: v.x / len, y: v.y / len, z: v.z / len };
 }
 
-/** Every port's absolute angle and whether an existing pipe already occupies it. */
+/** 3D unit vector from `from` toward `to` (the zero vector, degenerate, if the two coincide). */
+function directionTo(from: Point3D, to: Point3D): Point3D {
+  return normalize({ x: to.x - from.x, y: to.y - from.y, z: to.z - from.z });
+}
+
+/** Angle (degrees) between two unit vectors, via the dot product. */
+function angleBetween(a: Point3D, b: Point3D): number {
+  const dot = Math.min(1, Math.max(-1, a.x * b.x + a.y * b.y + a.z * b.z));
+  return (Math.acos(dot) * 180) / Math.PI;
+}
+
+/** Every port's world-space direction (connector.rotation applied) and whether an existing pipe already occupies it. */
 export function getConnectorPortInfo(structure: Structure, connector: ConnectorInstance): ConnectorPortInfo {
-  const angles = (CONNECTOR_PORT_ANGLES[connector.type] ?? []).map(
-    (a) => (a + connector.rotation + 360) % 360,
+  const directions = (CONNECTOR_PORT_DIRECTIONS[connector.type] ?? []).map((d) =>
+    rotateVector(d, connector.rotation),
   );
-  const occupied = angles.map(() => false);
+  const occupied = directions.map(() => false);
 
   for (const pipe of Object.values(structure.pipes)) {
     const ends: [Point3D, Point3D][] = [
@@ -44,13 +84,13 @@ export function getConnectorPortInfo(structure: Structure, connector: ConnectorI
     ];
     for (const [end, other] of ends) {
       if (distance(end, connector.position) > CONNECTOR_ATTACH_TOLERANCE) continue;
-      const angle = angleTo(connector.position, other);
+      const dir = directionTo(connector.position, other);
       let bestIdx = -1;
       let bestDelta = PORT_ANGLE_MATCH_TOLERANCE_DEG;
-      angles.forEach((a, i) => {
-        const d = angleDelta(a, angle);
-        if (d < bestDelta) {
-          bestDelta = d;
+      directions.forEach((d, i) => {
+        const delta = angleBetween(d, dir);
+        if (delta < bestDelta) {
+          bestDelta = delta;
           bestIdx = i;
         }
       });
@@ -58,36 +98,35 @@ export function getConnectorPortInfo(structure: Structure, connector: ConnectorI
     }
   }
 
-  return { angles, occupied };
+  return { directions, occupied };
 }
 
 export function freePortIndices(info: ConnectorPortInfo): number[] {
-  return info.angles.map((_, i) => i).filter((i) => !info.occupied[i]);
+  return info.directions.map((_, i) => i).filter((i) => !info.occupied[i]);
 }
 
-/** The connector's free port whose angle is closest to the direction from it toward `towards`, or null if none are free. */
+/** The connector's free port whose direction is closest to the direction from it toward `towards`, or null if none are free. */
 export function bestFreePortIndex(info: ConnectorPortInfo, connectorPos: Point3D, towards: Point3D): number | null {
-  const targetAngle = angleTo(connectorPos, towards);
+  const target = directionTo(connectorPos, towards);
   let bestIdx: number | null = null;
   let bestDelta = Infinity;
-  info.angles.forEach((a, i) => {
+  info.directions.forEach((d, i) => {
     if (info.occupied[i]) return;
-    const d = angleDelta(a, targetAngle);
-    if (d < bestDelta) {
-      bestDelta = d;
+    const delta = angleBetween(d, target);
+    if (delta < bestDelta) {
+      bestDelta = delta;
       bestIdx = i;
     }
   });
   return bestIdx;
 }
 
-/** The exact point `distanceOut` from `connectorPos`, outward along the given port's angle (z matches the connector's own). */
-export function pointAtPort(connectorPos: Point3D, portAngleDeg: number, distanceOut: number): Point3D {
-  const rad = (portAngleDeg * Math.PI) / 180;
+/** The exact point `distanceOut` from `connectorPos`, outward along the given port's world-space direction. */
+export function pointAtPort(connectorPos: Point3D, portDirection: Point3D, distanceOut: number): Point3D {
   return {
-    x: connectorPos.x + Math.cos(rad) * distanceOut,
-    y: connectorPos.y + Math.sin(rad) * distanceOut,
-    z: connectorPos.z,
+    x: connectorPos.x + portDirection.x * distanceOut,
+    y: connectorPos.y + portDirection.y * distanceOut,
+    z: connectorPos.z + portDirection.z * distanceOut,
   };
 }
 

@@ -6,6 +6,7 @@ import {
   PipeSize,
   Point3D,
   Project,
+  Rotation3D,
   Structure,
   StructureImage,
 } from "./types";
@@ -79,7 +80,7 @@ export function createConnector(
   type: ConnectorType,
   size: PipeSize,
   position: Point3D,
-  rotation = 0,
+  rotation: Rotation3D = { x: 0, y: 0, z: 0 },
 ): ConnectorInstance {
   return {
     id: generateConnectorId(),

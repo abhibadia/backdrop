@@ -26,8 +26,9 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
   const clearSelection = useUIStore((s) => s.clearSelection);
   const setSelectedElementIds = useUIStore((s) => s.setSelectedElementIds);
 
-  // Which specific ports (by angle, connector.rotation applied) are occupied —
-  // the same matching the Pipe tool uses to plug a new pipe into a free hole.
+  // Which specific ports (by direction, connector.rotation applied) are
+  // occupied — the same matching the Pipe tool uses to plug a new pipe into
+  // a free hole.
   const portInfo = getConnectorPortInfo(structure, connector);
   const usedPorts = portInfo.occupied.filter(Boolean).length;
   const totalPorts = CONNECTOR_TYPE_PORTS[connector.type];
@@ -46,11 +47,12 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
           <IconButton
             label="Duplicate"
             onClick={() => {
-              const copy = createConnector(connector.type, connector.size, {
-                x: connector.position.x + 20,
-                y: connector.position.y + 20,
-                z: connector.position.z,
-              });
+              const copy = createConnector(
+                connector.type,
+                connector.size,
+                { x: connector.position.x + 20, y: connector.position.y + 20, z: connector.position.z },
+                connector.rotation,
+              );
               addConnector(structure.id, copy);
               setSelectedElementIds([copy.id]);
             }}
@@ -91,23 +93,30 @@ export function ConnectorInspector({ structure, connector }: ConnectorInspectorP
       </div>
 
       <div className="mb-2">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
-            Rotation
-          </p>
-          <span className="font-mono text-[11px] text-foreground-muted">
-            {Math.round(connector.rotation)}°
-          </span>
-        </div>
-        <Slider
-          min={-180}
-          max={180}
-          step={1}
-          value={connector.rotation}
-          onChange={(e) =>
-            updateConnector(structure.id, connector.id, { rotation: Number(e.target.value) })
-          }
-        />
+        <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-foreground-subtle">
+          Rotation
+        </p>
+        {(["x", "y", "z"] as const).map((axis) => (
+          <div key={axis} className="mb-1 last:mb-0">
+            <div className="mb-0.5 flex items-center justify-between">
+              <span className="font-mono text-[10px] uppercase text-foreground-subtle">{axis}</span>
+              <span className="font-mono text-[11px] text-foreground-muted">
+                {Math.round(connector.rotation[axis])}°
+              </span>
+            </div>
+            <Slider
+              min={-180}
+              max={180}
+              step={1}
+              value={connector.rotation[axis]}
+              onChange={(e) =>
+                updateConnector(structure.id, connector.id, {
+                  rotation: { ...connector.rotation, [axis]: Number(e.target.value) },
+                })
+              }
+            />
+          </div>
+        ))}
       </div>
 
       <div className="mb-2 rounded-md bg-surface-elevated px-2 py-1.5 font-mono text-[11px] text-foreground-muted">

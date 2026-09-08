@@ -13,6 +13,7 @@ import {
   Units,
 } from "@/lib/model/types";
 import { createEmptyProject, createStructure, createLight } from "@/lib/model/factory";
+import { migrateProject } from "@/lib/model/migrations";
 
 export interface ProjectState {
   project: Project;
@@ -91,7 +92,11 @@ export const useProjectStore = create<ProjectState>()(
 
       loadProject: (project) =>
         set((state) => {
-          state.project = project;
+          // Brings older persisted/imported data up to the current schema
+          // (e.g. a connector's rotation used to be a single Z-degree
+          // number — see migrateProject) before it ever reaches the rest
+          // of the app.
+          state.project = migrateProject(project);
         }),
       resetProject: () =>
         set((state) => {

@@ -16,7 +16,7 @@ import {
   SCENE_GRID_COLORS,
   SELECTION_COLOR_3D,
 } from "@/lib/model/render";
-import { CONNECTOR_PORT_ANGLES, PIPE_SIZE_NOMINAL_LENGTH_M } from "@/lib/model/catalog";
+import { CONNECTOR_PORT_DIRECTIONS, PIPE_SIZE_NOMINAL_LENGTH_M } from "@/lib/model/catalog";
 import {
   bestFreePortIndex,
   findNearbyConnector,
@@ -189,7 +189,7 @@ function resolveSegment(
       (portOverride !== null && free.includes(portOverride) ? portOverride : null) ??
       bestFreePortIndex(info, aimConnector.position, drawStart) ??
       free[0];
-    const start = pointAtPort(aimConnector.position, info.angles[portIndex], fixedLength);
+    const start = pointAtPort(aimConnector.position, info.directions[portIndex], fixedLength);
     return {
       start,
       end: aimConnector.position,
@@ -220,7 +220,7 @@ function resolveSegment(
       (portOverride !== null && free.includes(portOverride) ? portOverride : null) ??
       bestFreePortIndex(info, drawStartConnector.position, rawAim) ??
       free[0];
-    const end = pointAtPort(drawStartConnector.position, info.angles[portIndex], fixedLength);
+    const end = pointAtPort(drawStartConnector.position, info.directions[portIndex], fixedLength);
     return {
       start: drawStartConnector.position,
       end,
@@ -464,7 +464,7 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
     }
 
     if (isConnectorTool) {
-      addConnector(structure.id, createConnector(activeConnectorType, activePipeSize, aim, 0));
+      addConnector(structure.id, createConnector(activeConnectorType, activePipeSize, aim));
     }
   };
 
@@ -531,15 +531,18 @@ export function BuildGridLattice3D({ structure }: BuildGridLattice3DProps) {
       )}
       {isConnectorTool && connectorPreviewPos && (
         <group position={connectorPreviewPos}>
-          {CONNECTOR_PORT_ANGLES[activeConnectorType].map((deg) => {
-            const rad = (deg * Math.PI) / 180;
-            const dir = new THREE.Vector3(Math.cos(rad), Math.sin(rad), 0);
+          {/* A freshly-placed connector always starts at rotation {0,0,0}
+              (rotating happens afterward via the inspector), so this preview
+              can render the type's base port directions directly with no
+              rotation applied — same reasoning as ConnectorMesh3D's arms. */}
+          {(CONNECTOR_PORT_DIRECTIONS[activeConnectorType] ?? []).map((d, i) => {
+            const dir = new THREE.Vector3(d.x, d.y, d.z);
             const armLength = CONNECTOR_ARM_LENGTH_3D;
             const radius = PIPE_RADIUS_3D * 1.15;
             const quat = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
             const mid = dir.clone().multiplyScalar(armLength / 2);
             return (
-              <mesh key={deg} position={mid} quaternion={quat}>
+              <mesh key={i} position={mid} quaternion={quat}>
                 <cylinderGeometry args={[radius, radius, armLength, 10]} />
                 <meshStandardMaterial color={SELECTION_COLOR_3D} transparent opacity={0.6} />
               </mesh>

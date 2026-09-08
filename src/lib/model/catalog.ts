@@ -2,6 +2,7 @@ import {
   CONNECTOR_TYPES,
   ConnectorType,
   PIPE_SIZES,
+  Point3D,
   PartCatalogEntry,
   PipeSize,
 } from "./types";
@@ -70,6 +71,7 @@ export const CONNECTOR_TYPE_LABEL: Record<ConnectorType, string> = {
   fourWay: "4-Way",
   coupler: "Coupler",
   triangle: "Triangular",
+  triAxis: "3-Way XYZ",
   // Retired from the picker (see the ConnectorType note in types.ts) but
   // still labeled so a connector already placed with one of these renders
   // correctly instead of crashing.
@@ -86,29 +88,47 @@ export const CONNECTOR_TYPE_PORTS: Record<ConnectorType, number> = {
   fourWay: 4,
   coupler: 2,
   triangle: 3,
+  triAxis: 3,
   elbow45: 2,
   cross: 4,
   flange: 1,
   cap: 1,
 };
 
+/** A unit vector at `deg` degrees in the XY plane (0 = +x, counter-clockwise), z = 0. */
+function xy(deg: number): Point3D {
+  const rad = (deg * Math.PI) / 180;
+  return { x: Math.cos(rad), y: Math.sin(rad), z: 0 };
+}
+
 /**
- * Port stub directions (degrees, 0 = +x, counter-clockwise) that define each
- * connector type's icon/glyph — shared by the 2D canvas glyph and the 3D
- * fitting mesh so the two stay visually consistent.
+ * Port stub directions — unit vectors in the connector's own local space,
+ * before its rotation is applied — that define each type's fitting geometry.
+ * Shared by the 3D fitting mesh (ConnectorMesh3D), the placement preview
+ * (BuildGridLattice3D), and the port-occupancy/attach logic
+ * (connectorPorts.ts) so all three stay consistent. Every existing type's
+ * ports lie flat in the local XY plane (z = 0); `triAxis` is the exception —
+ * a genuinely 3D fitting with one port along each principal axis, only
+ * possible now that a connector's rotation is a full 3D orientation rather
+ * than a single Z-axis angle (see Rotation3D in types.ts).
  */
-export const CONNECTOR_PORT_ANGLES: Record<ConnectorType, number[]> = {
-  elbow90: [180, 270],
-  tee: [90, 180, 270],
-  fourWay: [0, 90, 180, 270],
-  coupler: [0, 180],
+export const CONNECTOR_PORT_DIRECTIONS: Record<ConnectorType, Point3D[]> = {
+  elbow90: [xy(180), xy(270)],
+  tee: [xy(90), xy(180), xy(270)],
+  fourWay: [xy(0), xy(90), xy(180), xy(270)],
+  coupler: [xy(0), xy(180)],
   // Evenly spaced 120° apart (a symmetric Y), unlike the Tee's 90/180/270
   // straight-through-plus-branch layout — this is the "triangular" fitting.
-  triangle: [90, 210, 330],
-  elbow45: [180, 225],
-  cross: [0, 90, 180, 270],
-  flange: [180],
-  cap: [180],
+  triangle: [xy(90), xy(210), xy(330)],
+  triAxis: [
+    { x: 1, y: 0, z: 0 },
+    { x: 0, y: 1, z: 0 },
+    { x: 0, y: 0, z: 1 },
+  ],
+  elbow45: [xy(180), xy(225)],
+  cross: [xy(0), xy(90), xy(180), xy(270)],
+  flange: [xy(180)],
+  cap: [xy(180)],
 };
 
 export function pipePartKey(size: PipeSize): string {

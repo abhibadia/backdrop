@@ -6,7 +6,7 @@ import { CONNECTOR_TYPE_LABEL } from "@/lib/model/catalog";
 
 /**
  * Compact technical abbreviations shown on connector-type buttons. Only the
- * five current types (see CONNECTOR_TYPES in types.ts) are ever actually
+ * six current types (see CONNECTOR_TYPES in types.ts) are ever actually
  * rendered here — the retired ones are filled in just to satisfy the
  * Record<ConnectorType, ...> type.
  */
@@ -16,6 +16,7 @@ export const CONNECTOR_TYPE_SHORT_LABEL: Record<ConnectorType, string> = {
   fourWay: "4W",
   coupler: "—",
   triangle: "△",
+  triAxis: "XYZ",
   elbow45: "45°",
   cross: "+",
   flange: "|—",
@@ -30,7 +31,7 @@ interface ConnectorTypeSelectorProps {
 
 export function ConnectorTypeSelector({ value, onChange, className }: ConnectorTypeSelectorProps) {
   return (
-    <div className={clsx("grid shrink-0 grid-cols-5 gap-2", className)}>
+    <div className={clsx("grid shrink-0 grid-cols-6 gap-2", className)}>
       {CONNECTOR_TYPES.map((type) => (
         <button
           key={type}

@@ -7,7 +7,7 @@ import { ConnectorInstance, Structure } from "@/lib/model/types";
 import { useGroundDrag } from "@/lib/canvas3d/useGroundDrag";
 import { useClickGuard } from "@/lib/canvas3d/useClickGuard";
 import { CONNECTOR_ARM_LENGTH_3D, PIPE_RADIUS_3D, SELECTION_COLOR_3D } from "@/lib/model/render";
-import { CONNECTOR_PORT_ANGLES } from "@/lib/model/catalog";
+import { CONNECTOR_PORT_DIRECTIONS } from "@/lib/model/catalog";
 import { CONNECTOR_DRAG_SNAP_TOLERANCE, freePipeEndsOnPlane } from "@/lib/model/connectorPorts";
 import { snapToCandidates } from "@/lib/utils/geometry";
 import { useProjectStore } from "@/lib/store/projectStore";
@@ -40,7 +40,7 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   const radius = PIPE_RADIUS_3D * 1.15;
   // Falls back to no arms rather than crashing if a project somehow carries
   // a connector type this build doesn't recognize at all.
-  const angles = CONNECTOR_PORT_ANGLES[connector.type] ?? [];
+  const portDirections = CONNECTOR_PORT_DIRECTIONS[connector.type] ?? [];
   const color = isSelected ? SELECTION_COLOR_3D : connector.locked ? "#5b616c" : "#f0ead9";
 
   // Dragging a connector magnets onto a nearby unconnected pipe end once the
@@ -71,7 +71,11 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
   return (
     <group
       position={position}
-      rotation={[0, 0, (connector.rotation * Math.PI) / 180]}
+      rotation={[
+        (connector.rotation.x * Math.PI) / 180,
+        (connector.rotation.y * Math.PI) / 180,
+        (connector.rotation.z * Math.PI) / 180,
+      ]}
       onClick={handleClick}
       onPointerDown={(e) => {
         markPointerDown(e.nativeEvent);
@@ -87,13 +91,12 @@ export function ConnectorMesh3D({ structure, connector, interactive }: Connector
         <sphereGeometry args={[radius * 1.4, 16, 16]} />
         <meshStandardMaterial color={color} roughness={0.4} metalness={0.15} />
       </mesh>
-      {angles.map((deg) => {
-        const rad = (deg * Math.PI) / 180;
-        const dir = new THREE.Vector3(Math.cos(rad), Math.sin(rad), 0);
+      {portDirections.map((d, i) => {
+        const dir = new THREE.Vector3(d.x, d.y, d.z);
         const quat = new THREE.Quaternion().setFromUnitVectors(UP, dir);
         const mid = dir.clone().multiplyScalar(armLength / 2);
         return (
-          <mesh key={deg} position={mid} quaternion={quat} raycast={() => null}>
+          <mesh key={i} position={mid} quaternion={quat} raycast={() => null}>
             <cylinderGeometry args={[radius, radius, armLength, 12]} />
             <meshStandardMaterial color={color} roughness={0.4} metalness={0.15} />
           </mesh>
